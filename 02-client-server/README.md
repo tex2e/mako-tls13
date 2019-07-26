@@ -3,7 +3,7 @@
 
 この章では2者間で平文通信をするための Python プログラムを作ります。
 
-TCP/IPプロトコルの簡単な例として、受信したデータをクライアントのそのまま返すサーバを作ります。
+TCP/IPプロトコルの簡単な例として、受信したデータをクライアントのそのまま返すサーバを作ります[^pythonsocket]。
 サーバでは socket(), bind(), listen(), accept() を実行し、クライアントでは socket() と connect() だけを呼び出します。
 
 サーバ側：
@@ -119,4 +119,4 @@ TLS 1.3 の実装では、この抽象化したコードを使っていきます
 
 ### 参考文献
 
-- [socket --- 低水準ネットワークインターフェイス &#8212; Python 3.7.4 ドキュメント](https://docs.python.org/ja/3/library/socket.html#socket.socket.recv)
+[^pythonsocket]: [socket --- 低水準ネットワークインターフェイス &#8212; Python 3.7.4 ドキュメント](https://docs.python.org/ja/3/library/socket.html#socket.socket.recv)

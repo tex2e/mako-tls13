@@ -26,7 +26,7 @@ TLS 1.3はTLS 1.2と比較したときの主な変更点には、次のような
 OpenSSL は TLS クライアントとしても使うことができます。
 まずは OpenSSL のバージョンを確認しましょう。
 コマンドで `openssl version` と入力して「OpenSSL 1.1.1」と表示されれば TLS 1.3 が使えます。
-それ以下のバージョンだと TLS 1.2 までしか使えません。GitHubの[openssl](https://github.com/openssl/openssl)のページにアクセスしてダウンロードすることもできますが、最新のレポジトリは必ず動くという保証はないので、opensslの[releases](https://github.com/openssl/openssl/releases)から1.1.1以上の最新のバージョンをダウンロードします。
+それ以下のバージョンだと TLS 1.2 までしか使えません。GitHubの[openssl](https://github.com/openssl/openssl)のページにアクセスしてダウンロードすることもできますが、最新のレポジトリは必ず動くという保証はないので、opensslの[releases](https://github.com/openssl/openssl/releases)から1.1.1以上の最新のバージョンをダウンロードします[^openssl]。
 ここでは OpenSSL_1_1_1c をインストールする例をやりますが、必要に応じてバージョンを置き換えながら読んでください。
 
 ソースのダウンロードと展開：
@@ -89,7 +89,7 @@ Congratulations! You're connected using TLSv1.3! という文字列がHTMLの中
 ### curl 7.52.0
 
 次に TLS 1.3で通信ができる curl も用意します。
-curl は 7.52.0 以上であることに加えて、コンパイル時に TLS 1.3 対応の SSL を指定しないと TLS 1.3 で通信できません。
+curl は 7.52.0 以上であることに加えて、コンパイル時に TLS 1.3 対応の SSL を指定しないと TLS 1.3 で通信できません[^curl]。
 curl の最新バージョンは [curl/Download](https://curl.haxx.se/download.html) で確認できるので必要に応じて最新バージョンに置き換えてください。
 
 ```
@@ -151,3 +151,9 @@ curl の TLS 1.2 で通信するとき：
 両者を比較すると TLS 1.3 の方が 0.2秒ほど早くレスポンスが返ってきています。
 他にも TLS 1.2 では Certificate (証明書を送るパケット) が見えますが、TLS 1.3では暗号化されているので Application Data (暗号化データを送るパケット) しか見えません。
 これらはTLS 1.3でのプロトコルの改善によるものです。
+
+
+### 参考文献
+
+[^openssl]: [Using TLS1.3 With OpenSSL](https://www.openssl.org/blog/blog/2017/05/04/tlsv1.3/)
+[^curl]: [PLAY TLS 1.3 WITH CURL](https://daniel.haxx.se/blog/2018/03/27/play-tls-1-3-with-curl/)
