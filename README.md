@@ -29,6 +29,5 @@ TLS 1.3 をフルスクラッチするために役立つことを書きたい。
 
 ### 参考文献
 
-- [RFC 8446 - The Transport Layer Security (TLS) Protocol Version 1.3](https://tools.ietf.org/html/rfc8446)
+- [RFC 8446 -- The Transport Layer Security (TLS) Protocol Version 1.3](https://tools.ietf.org/html/rfc8446)
 - [SSL and TLS Deployment Best Practices](https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices)
-- [Qualys SSL Labs - SSL Pulse](https://www.ssllabs.com/ssl-pulse/)
