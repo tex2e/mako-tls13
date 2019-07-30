@@ -1,0 +1,87 @@
+# This is your sidebar TOC. The sidebar code loops through sections here and provides the appropriate formatting.
+
+# entries:
+# - title: sidebar
+#   - title: head1
+#     folderitems:
+#     - title: head2
+#       subfolders:
+#       - title: head3
+#         subfolderitems:
+#         - title: head4
+
+entries:
+- title: sidebar
+  product:
+  version:
+  folders:
+
+  - title: 概要
+
+    folderitems:
+
+    - title: TLS 1.3 自作入門
+      url: /index.html
+      type: homepage
+
+    - title: TLS事始め
+      url: /introduction.html
+
+    - title: OpenSSLとcURLのインストール
+      url: /install_openssl_and_curl.html
+
+    - title: WiresharkでTLS 1.3を観察する
+      url: /tls13_packet_with_wireshark.html
+
+    - title: RFCの読み方
+      url: /rfc_reading.html
+
+  - title: プロトコル
+
+    folderitems:
+
+    - title: ソケット通信
+      url: /client_server.html
+
+    - title: プロトコルの概要
+      url: /protocol_overview.html
+
+    - title: TLS拡張
+      url: /extensions.html
+
+  - title: 認証付き暗号
+
+    folderitems:
+
+    - title: fuga
+
+  - title: 公開鍵基盤
+
+    folderitems:
+
+    - title: piyo
+
+  - title: Publishing
+
+    folderitems:
+
+    - title: Publishing on Github Pages
+      url: /mydoc_publishing_github_pages.html
+
+  - title: その他
+
+    folderitems:
+
+    - title: hoge
+
+      subfolders:
+
+      - title: タグ一覧
+
+        subfolderitems:
+
+        - title: Getting Started pages
+          url: /tag_getting_started.html
+
+        - title: Troubleshooting pages
+          url: /tag_troubleshooting.html
