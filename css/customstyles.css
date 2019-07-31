@@ -223,13 +223,14 @@ ul#results-container a:hover {
 }
 #search-input {
     padding: .5em;
-    margin-left:20px;
-    width:20em;
+    margin-top: 7.5px;
+    margin-left: 20px;
+    width: 20em;
     font-size: 0.8em;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
-    margin-top:10px;
+    margin-bottom: 5px;
 }
 /* end search */
 
@@ -263,16 +264,16 @@ div#toc ul li ul li::before {
 }
 
 div#toc >ul::before {
-    content: "Table of Contents";
+    content: "目次";
     font-weight: 500;
     color: #555;
-    text-align:center;
-    margin-left:auto;
-    margin-right:auto;
-    width:70px;
-    padding-top:20px;
-    padding-bottom:20px;
-    padding-left:10px;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    width: 70px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    padding-left: 10px;
 }
 
 li.dropdownActive a {
@@ -1026,7 +1027,7 @@ ol li ul li ol li {
     list-style: decimal;
 }
 
-ol li ul li ol li ul li{
+ol li ul li ol li ul li {
     list-style: disc;
 }
 
@@ -1185,7 +1186,7 @@ h4.panel-title {
     }
     .navbar-nav {
         float: none!important;
-        margin-top: 7.5px;
+        margin-top: 0px;
     }
     .navbar-nav>li {
         float: none;
@@ -1194,7 +1195,7 @@ h4.panel-title {
         padding-top: 10px;
         padding-bottom: 10px;
     }
-    .collapse.in{
+    .collapse.in {
         display:block !important;
     }
 }

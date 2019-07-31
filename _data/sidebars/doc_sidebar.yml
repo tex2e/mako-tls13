@@ -61,18 +61,12 @@ entries:
 
     - title: piyo
 
-  - title: Publishing
+  - title: その他
 
     folderitems:
 
     - title: Publishing on Github Pages
       url: /mydoc_publishing_github_pages.html
-
-  - title: その他
-
-    folderitems:
-
-    - title: hoge
 
       subfolders:
 
