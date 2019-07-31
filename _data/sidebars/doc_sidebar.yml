@@ -40,14 +40,33 @@ entries:
 
     folderitems:
 
-    - title: ソケット通信
-      url: /client_server.html
+      - title: ソケット通信
+        url: /client_server.html
 
-    - title: プロトコルの概要
-      url: /protocol_overview.html
+      - title: プロトコルの概要
+        url: /protocol_overview.html
 
-    - title: TLS拡張
-      url: /extensions.html
+      - subfolders:
+        - title: ハンドシェイクプロトコル
+          subfolderitems:
+
+          - title: ハンドシェイクの構造体
+            url: /handshake_protocol.html
+
+          - title: 鍵交換
+
+          - title: サーバパラメータ
+
+          - title: 認証
+
+          - title: TLS拡張
+            url: /extensions.html
+
+      - subfolders:
+        - title: レコードプロトコル
+          subfolderitems:
+
+          - title: hoge
 
   - title: 認証付き暗号
 
@@ -74,10 +93,8 @@ entries:
     - title: Publishing on Github Pages
       url: /mydoc_publishing_github_pages.html
 
-      subfolders:
-
+    - subfolders:
       - title: タグ一覧
-
         subfolderitems:
 
         - title: Protocolに関するページ
