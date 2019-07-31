@@ -1,10 +1,11 @@
 ---
-title: "N日でできる! TLS 1.3自作入門 (仮)"
+title: "TLS 1.3自作入門"
 keywords: homepage
 tags: [getting_started]
 sidebar: doc_sidebar
 permalink: index.html
 toc: false
+redirect_from: /homepage.html
 ---
 
 {{site.data.alerts.warning}}
@@ -13,7 +14,7 @@ toc: false
 
 {{site.data.alerts.tip}}
 TLS 1.3 をフルスクラッチするために役立つことを書きたい。
-最終的には「N日でできる! TLS1.3自作入門」みたいな形にしたい。
+最終的には「CPUの創り方」や「30日でできる! TLS1.3自作入門」みたいな形にしたい。
 {{site.data.alerts.end}}
 
 ### モチベーション

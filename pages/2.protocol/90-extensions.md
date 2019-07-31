@@ -6,7 +6,7 @@ permalink: extensions.html
 ---
 
 
-プロトコル自体を修正することなくTLSに機能を追加する仕組みがTLS拡張です。
+プロトコル自体を修正することなくTLSに機能を追加する仕組みがTLS拡張です[^bulletproof]。
 TLS拡張は、先頭2byteで拡張の種類 (ExtensionType) を表し、その後に拡張の内容が続きます。
 
 ```
@@ -230,3 +230,8 @@ enum {
 TLS 1.3で必ずサポートしないといけない署名アルゴリズムは rsa_pkcs1_sha256, rsa_pss_rsae_sha256, ecdsa_secp256r1_sha256 の3つです。
 
 - [RFC 8446 -- The Transport Layer Security (TLS) Protocol Version 1.3, 4.2.3. Signature Algorithms](https://tools.ietf.org/html/rfc8446#section-4.2.3)
+
+
+-----
+
+[^bulletproof]: [プロフェッショナルSSL/TLS -- Ivan Ristić, 齋藤 孝道](https://www.lambdanote.com/collections/ssl-tls)
