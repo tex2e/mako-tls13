@@ -1,6 +1,6 @@
 ---
 title: TLS拡張
-tags:
+tags: [protocol]
 sidebar: doc_sidebar
 permalink: extensions.html
 ---

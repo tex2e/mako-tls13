@@ -80,8 +80,5 @@ entries:
 
         subfolderitems:
 
-        - title: Getting Started pages
-          url: /tag_getting_started.html
-
-        - title: Troubleshooting pages
-          url: /tag_troubleshooting.html
+        - title: Protocolに関するページ
+          url: /tag_protocol.html

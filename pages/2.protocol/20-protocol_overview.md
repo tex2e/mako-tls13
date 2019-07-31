@@ -1,6 +1,6 @@
 ---
 title: プロトコルの概要
-tags:
+tags: [protocol]
 sidebar: doc_sidebar
 permalink: protocol_overview.html
 ---

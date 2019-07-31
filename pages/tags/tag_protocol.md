@@ -1,8 +1,8 @@
 ---
-title: "Troubleshooting pages"
-tagName: troubleshooting
+title: "Protocol pages"
+tagName: protocol
 search: exclude
-permalink: tag_troubleshooting.html
+permalink: tag_protocol.html
 sidebar: doc_sidebar
 folder: tags
 ---

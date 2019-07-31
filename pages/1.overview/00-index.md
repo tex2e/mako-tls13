@@ -1,7 +1,7 @@
 ---
 title: "TLS 1.3自作入門"
 keywords: homepage
-tags: [getting_started]
+tags:
 sidebar: doc_sidebar
 permalink: index.html
 toc: false
