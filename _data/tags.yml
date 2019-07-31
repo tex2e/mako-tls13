@@ -2,6 +2,6 @@
 # If you are using the createtag script, don't leave an blank line at the end of this file.
 # In other words, the last line must be the last tag in the allowed-tags list.
 allowed-tags:
-  - getting_started
-  - installation
-  - troubleshooting
+  - protocol
+  - crypto
+  - math

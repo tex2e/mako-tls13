@@ -61,6 +61,12 @@ entries:
 
     - title: piyo
 
+  - title: 攻撃
+
+    folderitems:
+
+    - title: piyo
+
   - title: その他
 
     folderitems:
