@@ -384,14 +384,11 @@ ul#mysidebar {
     border-radius:0px;
 }
 
-.nav ul li ul li a {
-    padding-left:40px;
-}
 
 .nav li.thirdlevel > a {
     color: #248EC2;
-    font-weight:bold;
-    padding-left:20px;
+    font-weight: bold;
+    padding-left: 20px;
     background-color: whitesmoke !important;
 }
 
@@ -401,7 +398,7 @@ ul#mysidebar {
 }
 
 .nav li a {
-    padding-right:10px;
+    padding-right: 10px;
 }
 
 .nav li a:hover {
@@ -409,13 +406,17 @@ ul#mysidebar {
 }
 
 .nav ul li a {
-    border-top:1px solid whitesmoke;
-    padding-left:10px;
+    border-top: 1px solid whitesmoke;
+    padding-left: 20px;
+}
+
+.nav ul li ul li a {
+    padding-left: 40px;
 }
 /* end sidebar */
 
 .navbar-inverse .navbar-nav > .active > a, .navbar-inverse .navbar-nav > .active > a:hover, .navbar-inverse .navbar-nav > .active > a:focus {
-    border-radius:5px;
+    border-radius: 5px;
 }
 
 .navbar-inverse .navbar-nav>.open>a, .navbar-inverse .navbar-nav>.open>a:focus, .navbar-inverse .navbar-nav>.open>a:hover {
