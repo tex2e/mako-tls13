@@ -90,6 +90,9 @@ entries:
     - title: Publishing on Github Pages
       url: /mydoc_publishing_github_pages.html
 
+    - title: 全ての構造体一覧
+      url: /all_structures.html
+
     - subfolders:
       - title: タグ一覧
         subfolderitems:
