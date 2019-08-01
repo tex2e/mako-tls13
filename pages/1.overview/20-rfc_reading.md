@@ -5,11 +5,38 @@ sidebar: doc_sidebar
 permalink: rfc_reading.html
 ---
 
+## RFCのヘッダー情報
+
+例えばHTMLのRFCとして[RFC 8446](https://tools.ietf.org/html/rfc8446)にアクセスしたとき、RFCのヘッダには以下のように、リンクの一覧が表示されています。
+
+```
+[Docs] [txt|pdf] [draft-ietf-tls-...] [Tracker] [Diff1] [Diff2] [IPR] [Errata]
+```
+
+それぞれの意味と使い方について説明します。
+
+- `[Docs]` : IETFの公式ページへのリンクです。IETFのページで、TLS関連のRFCを読みたいときは、左側のナビの [WGs](https://tools.ietf.org/wg) (Working Groups : ワーキンググループ) の一覧にある [Tls](https://tools.ietf.org/wg/tls/) にアクセスすると、TLSワーキンググループが策定中のRFCと、既に正式な文書になったRFCの一覧を見ることができます。
+
+- `[txt]` : テキスト版のRFCのページへのリンクです。ブラウザが使用できない特殊な環境でRFCを読むときに役に立ちます。
+
+- `[pdf]` : PDF版のRFCのページへのリンクです。RFCを印刷したいときに使います。
+
+- `[draft-ietf-tls-...]` : このRFCが発行される前のドラフトです。ここから、ドラフトの一覧を見ることができます。
+
+- `Tracker` : ドラフトからRFCになるまでのドキュメントの歴史です。
+
+- `Diff` : ドラフトとの差分です。使う場面はあまりないかもしれないです。
+
+- `IPR` : 他のRFCへの影響の一覧です。どのRFCをObsoleteにしたか、逆にどのRFCにObsoleteされたかの日にちがわかります。
+
+- `Errata` : このRFCの正誤表の一覧です。**正誤表は必ず一読すること**。Errataは誰でも投稿することができ、その内容は Reported(報告済み) から Verified(検証済み) や Rejected(却下) もしくは Held for Document Update(必ずしも誤りではないが次のRFCを作るときに考慮する) になります。
+
+
 ## 形式言語
 
 [3. Presentation Language](https://tools.ietf.org/html/rfc8446#section-3)
 
-ここでは、形式言語の読み方について説明します。
+ここでは、[RFC 8446](https://tools.ietf.org/html/rfc8446)の形式言語の読み方について説明します。
 
 データの基本単位は1byteです。バイトの並び順は**ビッグエンディアン**です。
 バイト列を数値に変換するときは、C言語で書くと次のようになります。
