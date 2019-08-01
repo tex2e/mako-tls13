@@ -50,7 +50,7 @@ struct {
 TLSPlaintextについて：
 
 - type : 格納する構造体の種類 (2byte)
-- legacy_record_version : TLSのバージョン (2byte)。必ず 0x0303 にします。
+- legacy_record_version : TLSのバージョン (2byte)。TLS 1.2以前の互換性のために必ず 0x0303 にします。
 - length : 上のレイヤの構造体のバイト長 (2byte)
 - fragment : 上のレイヤの構造体のデータ。ここのHandshake構造体のデータなどが格納されます。
 
@@ -87,7 +87,7 @@ TLSInnerPlaintextについて：
 TLSCiphertextについて：
 
 - opaque_type : 上のレイヤの構造体の種類 (2byte)。必ず application_data の値 (0x17) にします。
-- legacy_record_version : TLSのバージョン (2byte)。必ず 0x0303 にします。
+- legacy_record_version : TLSのバージョン (2byte)。TLS 1.2以前の互換性のために必ず 0x0303 にします。
 - length : 上のレイヤの構造体のバイト長 (2byte)
 - encrypted_record : 上のレイヤの構造体のデータ。TLSInnerPlaintext が格納されます。
 
