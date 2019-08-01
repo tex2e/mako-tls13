@@ -316,12 +316,10 @@ a.accordion-toggle, a.accordion-collapsed {
 
 .nav ul {
     padding: 0;
-    /*margin: 0 0 0 18px;*/
     margin:0px;
 }
 
 .nav {
-    /* padding: 4px;*/
     padding:0px;
     margin: 0px;
 }
@@ -338,9 +336,6 @@ a.accordion-toggle, a.accordion-collapsed {
     color: #333;
     display: block;
     outline: none;
-    /*-webkit-border-radius: 4px;
-    -moz-border-radius: 4px;
-    border-radius: 4px;*/
     text-decoration: none;
 }
 
@@ -358,13 +353,19 @@ a.accordion-toggle, a.accordion-collapsed {
     content: '\25b4';
 }
 
-.nav a:hover, .nav li.active > a {
+.nav a:hover,
+.nav li.active > a {
     background-color: #8D8D8D;
     color: #f5f5f5;
 }
 
+.nav li.subfolders.active > a {
+    background-color: #72ac4a;
+    color: #f5f5f5;
+}
+
 .nav > li.active > a  {
-background-color: #347DBE;
+    background-color: #347DBE;
 }
 
 .nav li a {
