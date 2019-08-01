@@ -10,7 +10,7 @@ output: web
 topnav_title: TLS 1.3 自作入門
 # this appears on the top navigation bar next to the home button
 
-site_title: Jekyll theme for documentation
+site_title: TLS 1.3自作入門
 # this appears in the html browser tab for the site title (seen mostly by search engines, not users)
 
 company_name: TeX2e

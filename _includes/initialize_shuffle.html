@@ -7,7 +7,7 @@ $(document).ready(function() {
 
 <!-- shuffle -->
 <script>
-var shuffleme = (function( $ ) {
+var shuffleme = (function($) {
   'use strict';
 
   var $grid = $('#grid'),
@@ -34,7 +34,7 @@ var shuffleme = (function( $ ) {
     var $btns = $filterOptions.children();
     $btns.on('click', function() {
       var $this = $(this),
-          isActive = $this.hasClass( 'active' ),
+          isActive = $this.hasClass('active'),
           group = isActive ? 'all' : $this.data('group');
 
       // Hide current label, show current label in title
@@ -45,7 +45,7 @@ var shuffleme = (function( $ ) {
       $this.toggleClass('active');
 
       // Filter elements
-      $grid.shuffle( 'shuffle', group );
+      $grid.shuffle('shuffle', group);
     });
 
     $btns = null;
@@ -57,7 +57,7 @@ var shuffleme = (function( $ ) {
   // I recommend using imagesloaded to determine when an image is loaded
   // but that doesn't support IE7
   listen = function() {
-    var debouncedLayout = $.throttle( 300, function() {
+    var debouncedLayout = $.throttle(300, function() {
       $grid.shuffle('update');
     });
 
@@ -66,13 +66,13 @@ var shuffleme = (function( $ ) {
       var proxyImage;
 
       // Image already loaded
-      if ( this.complete && this.naturalWidth !== undefined ) {
+      if (this.complete && this.naturalWidth !== undefined) {
         return;
       }
 
       // If none of the checks above matched, simulate loading on detached element.
       proxyImage = new Image();
-      $( proxyImage ).on('load', function() {
+      $(proxyImage).on('load', function() {
         $(this).off('load');
         debouncedLayout();
       });
@@ -89,8 +89,7 @@ var shuffleme = (function( $ ) {
   return {
     init: init
   };
-}( jQuery ));
-
+}(jQuery));
 
 
 $(document).ready(function() {

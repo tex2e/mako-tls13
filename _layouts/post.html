@@ -19,14 +19,12 @@ layout: default
   </header>
 
   <div class="post-content" itemprop="articleBody">
-      {% if page.summary %}
-      <div class="summary">{{page.summary}}</div>
-      {% endif %}
+    {% if page.summary %}
+    <div class="summary">{{page.summary}}</div>
+    {% endif %}
 
-      {{ content }}
+    {{ content }}
   </div>
-
-
 
 </article>
 
