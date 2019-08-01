@@ -25,6 +25,7 @@ TLS 1.3 をフルスクラッチするために役立つことを書きたい。
   - 認証付き暗号が理解できる
   - 公開鍵基盤の仕組みが理解できる
   - 実装・プロトコル・暗号技術に対する攻撃手法について理解できる
+  - opensslコマンドによるテストができる
 
 ### 実装の流れ
 
@@ -34,14 +35,12 @@ TLS 1.3 をフルスクラッチするために役立つことを書きたい。
 - データ構造とバイト列の相互変換
 - DH鍵共有
 - 暗号化
-  - AES_128_GCM
-  - AES_256_GCM
+  - AES_128_GCM, AES_256_GCM
   - CHACHA20_POLY1305
+  - AES_128_CCM, AES_128_CCM_8
 
 
 ## 参考文献
 
 - [RFC 8446 -- The Transport Layer Security (TLS) Protocol Version 1.3](https://tools.ietf.org/html/rfc8446)
 - [SSL and TLS Deployment Best Practices](https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices)
-
-{% include links.html %}

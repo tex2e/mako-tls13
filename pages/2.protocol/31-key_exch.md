@@ -7,7 +7,7 @@ permalink: handshake_key_exch.html
 
 ## Client Hello
 
-TLSで最初にクライアント側から送るメッセージです。
+TLSで最初にクライアント側から送るメッセージは ClientHello です。
 
 ```
 uint16 ProtocolVersion;
@@ -35,7 +35,7 @@ struct {
 
 ## Server Hello
 
-Client Helloの応答としてサーバ側が送るメッセージです。
+ClientHelloの応答としてサーバ側が送るメッセージは ServerHello です。
 
 ```
 struct {
@@ -54,3 +54,9 @@ struct {
 - cipher_suite : サーバが ClientHello.cipher_suites から選んだ暗号スイートが入ります。
 - legacy_compression_method : 圧縮方法。必ず 0 にすること (c.f. CRIME攻撃)。
 - extensions : TLS拡張のリスト。TLS1.3では必ず supported_versions 拡張が含まれます。残りの鍵共有に関係ない拡張は EncryptedExtensions メッセージで送られます。
+
+
+## Hello Retry Request
+
+ClientHello で送られてきた情報がハンドシェイクを進めるのに不十分なときには、サーバは HelloRetryRequest を返します。
+ただし、HelloRetryRequest の構造は ServerHello の構造と同じです。

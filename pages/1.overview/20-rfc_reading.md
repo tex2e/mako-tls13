@@ -25,11 +25,11 @@ permalink: rfc_reading.html
 
 - `Tracker` : ドラフトからRFCになるまでのドキュメントの歴史です。
 
-- `Diff` : ドラフトとの差分です。使う場面はあまりないかもしれないです。
+- `Diff` : ドラフトとの差分です。RFCがまだドラフトのときはよく使いますが、RFCが正式にリリースされたあとでは使う場面はあまりないです。
 
 - `IPR` : 他のRFCへの影響の一覧です。どのRFCをObsoleteにしたか、逆にどのRFCにObsoleteされたかの日にちがわかります。
 
-- `Errata` : このRFCの正誤表の一覧です。**正誤表は必ず一読すること**。Errataは誰でも投稿することができ、その内容は Reported(報告済み) から Verified(検証済み) や Rejected(却下) もしくは Held for Document Update(必ずしも誤りではないが次のRFCを作るときに考慮する) になります。
+- `Errata` : このRFCの正誤表の一覧です。**正誤表は必ず一読すること**。Errataは誰でも投稿することができ、その内容は Reported (報告済み) から Verified (検証済み) や Rejected (却下) もしくは Held for Document Update (必ずしも誤りではないが次のRFCを作るときに考慮する) になります。
 
 
 ## 形式言語

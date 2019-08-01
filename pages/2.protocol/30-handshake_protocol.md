@@ -18,7 +18,7 @@ TLSPlaintext
     └── ClientHello
 ```
 
-以下では、TLSPlaintext と Handshake の構造体について詳しく見ていきます。
+以下では、TLSPlaintext/TLSCiphertext と Handshake の構造体について詳しく見ていきます。
 
 ## レコード層 (Record Layer)
 
