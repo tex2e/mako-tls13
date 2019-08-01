@@ -50,35 +50,32 @@ entries:
         - title: ハンドシェイクプロトコル
           subfolderitems:
 
-          - title: ハンドシェイクの構造体
+          - title: プロトコルの構造体
             url: /handshake_protocol.html
 
-          - title: 鍵交換
+          - title: 鍵交換の構造体
+            url: /handshake_key_exch.html
 
-          - title: サーバパラメータ
+          - title: サーバパラメータの構造体
+            url: /handshake_server_params.html
 
-          - title: 認証
+          - title: 認証の構造体
+            url: /handshake_auth.html
 
           - title: TLS拡張
             url: /extensions.html
-
-      - subfolders:
-        - title: レコードプロトコル
-          subfolderitems:
-
-          - title: hoge
 
   - title: 認証付き暗号
 
     folderitems:
 
-    - title: fuga
+    - title: hoge
 
   - title: 公開鍵基盤
 
     folderitems:
 
-    - title: piyo
+    - title: fuga
 
   - title: 攻撃
 
