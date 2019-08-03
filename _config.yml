@@ -55,7 +55,7 @@ collections:
 # collections are declared here. this renders the content in _tooltips and processes it, but doesn't output it as actual files in the output unless you change output to true
 
 sidebars:
-- mydoc_sidebar
+- doc_sidebar
 
 # description: "Intended as a documentation theme based on Jekyll for technical writers documenting software and other technical products, this theme has all the elements you would need to handle multiple products with both multi-level sidebar navigation, tags, and other documentation features."
 description: "TLS 1.3 自作入門"
