@@ -46,18 +46,14 @@ entries:
       - title: プロトコルの概要
         url: /protocol_overview.html
 
-      - subfolders:
-        - title: ハンドシェイクプロトコル
-          subfolderitems:
+      - title: プロトコルの構造体
+        url: /handshake_protocol.html
 
-          - title: プロトコルの構造体
-            url: /handshake_protocol.html
+      - title: データ構造とバイト列の変換
+        url: /protocol_structs_and_bytes.html
 
-          - title: データ構造とバイト列の変換
-            url: /protocol_structs_and_bytes.html
-
-          - title: TLS拡張
-            url: /extensions.html
+      - title: TLS拡張
+        url: /extensions.html
 
   - title: 認証付き暗号
 
