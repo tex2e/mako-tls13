@@ -1,3 +1,7 @@
 #!/bin/bash
 
-bundle exec jekyll serve
+if [[ "$1" =~ ^re ]]; then
+  bundle exec jekyll build
+fi
+
+bundle exec jekyll server -I --livereload --future
