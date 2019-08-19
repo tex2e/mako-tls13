@@ -181,7 +181,7 @@ def Opaque(size):
         size = 0
 
         def __init__(self, byte):
-            max_size = self.__class__.size
+            max_size = OpaqueFix.size
             assert isinstance(byte, (bytes, bytearray))
             assert len(byte) <= max_size
             self.byte = byte.rjust(max_size, b'\x00')
@@ -190,11 +190,14 @@ def Opaque(size):
             return self.byte
 
         @classmethod
-        def from_bytes(self, data):
+        def from_bytes(cls, data):
             return OpaqueFix(data)
 
         def __eq__(self, other):
             return self.byte == other.byte
+
+        def __len__(self):
+            return len(self.byte)
 
     # 可変長のOpaque (e.g. opaque string<0..15>)
     class OpaqueVar:
@@ -203,7 +206,7 @@ def Opaque(size):
 
         def __init__(self, byte):
             assert isinstance(byte, (bytes, bytearray))
-            size_t = self.__class__.size_t
+            size_t = OpaqueVar.size_t
             self.byte = byte
             self.size_t = size_t
 
@@ -213,7 +216,7 @@ def Opaque(size):
 
         @classmethod
         def from_bytes(cls, data):
-            size_t = cls.size_t
+            size_t = OpaqueVar.size_t
             f = io.BytesIO(data)
             length = size_t.from_bytes(f.read(size_t.size))
             byte   = f.read(int(length))
@@ -222,10 +225,13 @@ def Opaque(size):
         def __eq__(self, other):
             return self.byte == other.byte and self.size_t == other.size_t
 
-    if isinstance(size, int):
+        def __len__(self):
+            return len(self.byte)
+
+    if isinstance(size, int): # 引数がintのときは固定長
         OpaqueFix.size = size
         return OpaqueFix
-    if issubclass(size, Uint):
+    if issubclass(size, Uint): # 引数がUintNのときは可変長
         OpaqueVar.size = None
         OpaqueVar.size_t = size
         return OpaqueVar
@@ -240,20 +246,20 @@ OpaqueVarクラスのテストでは、バイト列に変換したときに、�
 class TestUint(unittest.TestCase):
 
     def test_opaque_fix(self):
-        # 最大4byteのOpaqueに対して、4byteのバイト列を渡す
+        # 4byteのOpaqueに対して、4byteのバイト列を渡す
         Opaque4 = Opaque(4)
         o = Opaque4(b'\x01\x23\x45\x67')
         self.assertEqual(bytes(o), b'\x01\x23\x45\x67')
         self.assertEqual(Opaque4.from_bytes(bytes(o)), o)
 
-        # 最大8byteのOpaqueに対して、4byteのバイト列を渡す
+        # 8byteのOpaqueに対して、4byteのバイト列を渡す
         Opaque8 = Opaque(8)
         o = Opaque8(b'\x01\x23\x45\x67')
         self.assertEqual(bytes(o), b'\x00\x00\x00\x00\x01\x23\x45\x67')
         self.assertEqual(Opaque8.from_bytes(bytes(o)), o)
 
     def test_opaque_fix_invalid_args(self):
-        # 最大4byteのOpaqueに対して、5byteのバイト列を渡す
+        # 4byteのOpaqueに対して、5byteのバイト列を渡す
         Opaque4 = Opaque(4)
         with self.assertRaises(Exception) as cm:
             o = Opaque4(b'\x01\x23\x45\x67\x89')
@@ -275,4 +281,89 @@ class TestUint(unittest.TestCase):
 
 ## 配列
 
-TODO: 要素が固定長の配列と、要素が可変長の配列
+配列には2種類あります。要素が固定長の配列と、要素が可変長の配列です。
+
+```python
+def List(elem_t, size_t=None):
+
+    class List:
+        size = None
+        size_t = Uint
+        elem_t = None # Elements' Type
+
+        def __init__(self, array):
+            self.array = array
+
+        def __bytes__(self):
+            size_t = List.size_t
+            buffer = bytearray(0)
+            buffer += bytes(size_t(sum(map(len, self.array))))
+            buffer += b''.join(bytes(elem) for elem in self.array)
+            return bytes(buffer)
+
+        @classmethod
+        def from_bytes(cls, data):
+            size_t = cls.size_t
+            elem_t = cls.elem_t
+            f = io.BytesIO(data)
+            list_size = int(size_t.from_bytes(f.read(size_t.size)))
+            elem_size = elem_t.size
+
+            if elem_t.size: # 要素が固定長の場合
+                array = []
+                for i in range(list_size // elem_size): # 要素数
+                    array.append(elem_t.from_bytes(f.read(elem_t.size)))
+                return List(array)
+
+            else: # 要素が可変長の場合
+                array = []
+                while True:
+                    tmp = f.read(elem_t.size_t.size)       # 要素の長さを取得
+                    if tmp == b'': break
+                    elem_len = int(size_t.from_bytes(tmp)) # 要素の長さを取得
+                    elem     = elem_t(f.read(elem_len))    # 要素の内容を取得
+                    array.append(elem)
+                return List(array)
+
+        def __eq__(self, other):
+            assert isinstance(other, List)
+            if len(self.array) != len(other.array):
+                return False
+            for self_elem, other_elem in zip(self.array, other.array):
+                if self_elem != other_elem:
+                    return False
+            return True
+
+    List.size_t = size_t
+    List.elem_t = elem_t
+    return List
+```
+
+次にテストをします。
+
+```python
+class TestUint(unittest.TestCase):
+    def test_list_fix(self):
+        ListUint16 = List(size_t=Uint8, elem_t=Uint16)
+        l = ListUint16([])
+        self.assertEqual(bytes(l), b'\x00')
+        self.assertEqual(ListUint16.from_bytes(bytes(l)), l)
+
+        ListUint16 = List(size_t=Uint8, elem_t=Uint16)
+        l = ListUint16([Uint16(1), Uint16(2), Uint16(65535)])
+        self.assertEqual(bytes(l), b'\x06\x00\x01\x00\x02\xff\xff')
+        self.assertEqual(ListUint16.from_bytes(bytes(l)), l)
+
+        Opaque2 = Opaque(2)
+        ListOpaque2 = List(size_t=Uint8, elem_t=Opaque2)
+        l = ListOpaque2([Opaque2(b'\xdd\xdd'), Opaque2(b'\xff\xff')])
+        self.assertEqual(bytes(l), b'\x04\xdd\xdd\xff\xff')
+        self.assertEqual(ListOpaque2.from_bytes(bytes(l)), l)
+
+    def test_list_var(self):
+        OpaqueUint8 = Opaque(Uint8)
+        ListOpaqueUint8 = List(size_t=Uint8, elem_t=OpaqueUint8)
+        l = ListOpaqueUint8([OpaqueUint8(b'\x12\x12'), OpaqueUint8(b'\xff\xff')])
+        self.assertEqual(bytes(l), b'\x04\x02\x12\x12\x02\xff\xff')
+        self.assertEqual(ListOpaqueUint8.from_bytes(bytes(l)), l)
+```
