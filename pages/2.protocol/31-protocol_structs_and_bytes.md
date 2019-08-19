@@ -284,7 +284,7 @@ class TestUint(unittest.TestCase):
 配列には2種類あります。要素が固定長の配列と、要素が可変長の配列です。
 
 ```python
-def List(elem_t, size_t=None):
+def List(elem_t, size_t):
 
     class List:
         size = None
