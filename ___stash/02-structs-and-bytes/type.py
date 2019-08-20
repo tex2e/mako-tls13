@@ -3,8 +3,16 @@ import abc # 抽象基底クラス
 import struct # バイト列の解釈
 import io # バイトストリーム操作
 
+# 全ての型が継承するクラス
+class Type(abc.ABC):
+    # バイト列から構造体を構築するメソッドの中では、
+    # バイト列の代わりにストリームを渡すことで、読み取った文字数をストリームが保持する。
+    @classmethod
+    def from_bytes(cls, data):
+        return cls.from_fs(io.BytesIO(data))
+
 # UintNの抽象クラス
-class Uint(abc.ABC):
+class Uint(Type):
     def __init__(self, value):
         assert isinstance(value, int)
         max_value = 1 << (8 * self.__class__.size)
@@ -17,7 +25,7 @@ class Uint(abc.ABC):
 
     @classmethod
     @abc.abstractmethod # 抽象メソッド
-    def from_bytes(cls, data):
+    def from_fs(cls, data):
         raise NotImplementedError()
 
     def __len__(self):
@@ -42,8 +50,8 @@ class Uint8(Uint):
         return struct.pack('>B', self.value)
 
     @classmethod
-    def from_bytes(cls, data):
-        return Uint8(struct.unpack('>B', data)[0])
+    def from_fs(cls, fs):
+        return Uint8(struct.unpack('>B', fs.read(cls.size))[0])
 
 class Uint16(Uint):
     size = 2  # unsigned short
@@ -52,8 +60,8 @@ class Uint16(Uint):
         return struct.pack('>H', self.value)
 
     @classmethod
-    def from_bytes(cls, data):
-        return Uint16(struct.unpack('>H', data)[0])
+    def from_fs(cls, fs):
+        return Uint16(struct.unpack('>H', fs.read(cls.size))[0])
 
 class Uint24(Uint):
     size = 3
@@ -62,8 +70,8 @@ class Uint24(Uint):
         return struct.pack('>BH', self.value >> 16, self.value & 0xffff)
 
     @classmethod
-    def from_bytes(cls, data):
-        high, low = struct.unpack('>BH', data)
+    def from_fs(cls, fs):
+        high, low = struct.unpack('>BH', fs.read(cls.size))
         return Uint24((high << 16) + low)
 
 class Uint32(Uint):
@@ -73,14 +81,14 @@ class Uint32(Uint):
         return struct.pack('>I', self.value)
 
     @classmethod
-    def from_bytes(cls, data):
-        return Uint32(struct.unpack('>I', data)[0])
+    def from_fs(cls, fs):
+        return Uint32(struct.unpack('>I', fs.read(cls.size))[0])
 
 
 def Opaque(size_t):
 
     # 固定長のOpaque (e.g. opaque string[16])
-    class OpaqueFix:
+    class OpaqueFix(Type):
         size = 0
 
         def __init__(self, byte):
@@ -93,8 +101,8 @@ def Opaque(size_t):
             return self.byte
 
         @classmethod
-        def from_bytes(cls, data):
-            return OpaqueFix(data)
+        def from_fs(cls, fs):
+            return OpaqueFix(fs.read(cls.size))
 
         def __eq__(self, other):
             return self.byte == other.byte
@@ -106,7 +114,7 @@ def Opaque(size_t):
             return 'Opaque[%d](%s)' % (OpaqueFix.size, repr(self.byte))
 
     # 可変長のOpaque (e.g. opaque string<0..15>)
-    class OpaqueVar:
+    class OpaqueVar(Type):
         size = None
         size_t = Uint
 
@@ -121,11 +129,10 @@ def Opaque(size_t):
             return bytes(UintN(len(self.byte))) + self.byte
 
         @classmethod
-        def from_bytes(cls, data):
+        def from_fs(cls, fs):
             size_t = OpaqueVar.size_t
-            f = io.BytesIO(data)
-            length = int(size_t.from_bytes(f.read(size_t.size)))
-            byte   = f.read(length)
+            length = int(size_t.from_fs(fs))
+            byte   = fs.read(length)
             return OpaqueVar(byte)
 
         def __eq__(self, other):
@@ -150,7 +157,7 @@ def Opaque(size_t):
 
 def List(size_t, elem_t):
 
-    class List:
+    class List(Type):
         size = None
         size_t = Uint
         elem_t = None # Elements' Type
@@ -160,32 +167,32 @@ def List(size_t, elem_t):
 
         def __bytes__(self):
             size_t = List.size_t
-            buffer = bytearray(0)
-            buffer += bytes(size_t(sum(map(len, self.array))))
-            buffer += b''.join(bytes(elem) for elem in self.array)
-            return bytes(buffer)
+            content = b''.join(bytes(elem) for elem in self.array)
+            content_len = len(content)
+            return bytes(size_t(content_len)) + content
 
         @classmethod
-        def from_bytes(cls, data):
+        def from_fs(cls, fs):
             size_t = cls.size_t
             elem_t = cls.elem_t
-            f = io.BytesIO(data)
-            list_size = int(size_t.from_bytes(f.read(size_t.size)))
-            elem_size = elem_t.size
+            list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
+            size_size = size_t.size # リストの長さを表す部分の長さ
+            elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
             if elem_t.size: # 要素が固定長の場合
                 array = []
                 for i in range(list_size // elem_size): # 要素数
-                    array.append(elem_t.from_bytes(f.read(elem_t.size)))
+                    array.append(elem_t.from_fs(fs))
                 return List(array)
 
             else: # 要素が可変長の場合
                 array = []
-                while True:
-                    tmp = f.read(elem_t.size_t.size)       # 要素の長さを取得
-                    if tmp == b'': break
-                    elem_len = int(size_t.from_bytes(tmp)) # 要素の長さを取得
-                    elem     = elem_t(f.read(elem_len))    # 要素の内容を取得
+                # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
+                while fs.tell() < size_size + list_size:
+                    # print('---')
+                    # print(fs.tell(), size_size + list_size)
+                    elem = elem_t.from_fs(fs)
+                    # print(fs.tell(), size_size + list_size)
                     array.append(elem)
                 return List(array)
 
@@ -338,9 +345,7 @@ if __name__ == '__main__':
             OpaqueUint8 = Opaque(Uint8)
             ListOpaqueUint8 = List(size_t=Uint8, elem_t=OpaqueUint8)
             l = ListOpaqueUint8([OpaqueUint8(b'\x12\x12'), OpaqueUint8(b'\xff\xff')])
-            self.assertEqual(bytes(l), b'\x04\x02\x12\x12\x02\xff\xff')
+            self.assertEqual(bytes(l), b'\x06\x02\x12\x12\x02\xff\xff')
             self.assertEqual(ListOpaqueUint8.from_bytes(bytes(l)), l)
-
-
 
     unittest.main()

@@ -1,8 +1,7 @@
 
-import abc # 抽象基底クラス
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
-from type import Uint8, Uint16, Opaque, List
+from type import Type, Uint8, Uint16, Opaque, List
 from disp import hexdump
 
 # TLSメッセージの構造体を表すためのクラス群
@@ -19,7 +18,7 @@ from disp import hexdump
 #     ])
 #
 
-class StructMeta(abc.ABC):
+class StructMeta(Type):
     def __init__(self, **kwargs):
         self.set_struct(self.__class__.struct.set_args(self, **kwargs))
 
@@ -32,9 +31,25 @@ class StructMeta(abc.ABC):
         return f.getvalue()
 
     @classmethod
-    def from_bytes(cls, data):
-        pass
-        # TODO:
+    def from_fs(cls, fs):
+        dict = {}
+        for member in cls.get_structmeta().get_members():
+            name = member.get_name()
+            elem = member.get_type().from_fs(fs)
+            dict[name] = elem
+        return cls(**dict)
+
+    # 構造体のメタ情報は class.struct に格納する
+    @classmethod
+    def get_structmeta(cls):
+        return cls.struct
+
+    # 構造体に値を代入したものは self._struct に格納する
+    def get_struct(self):
+        return self._struct
+
+    def set_struct(self, mystruct):
+        self._struct = mystruct
 
     def __repr__(self):
         # 出力は次のようにする
@@ -59,17 +74,18 @@ class StructMeta(abc.ABC):
             elems.append('+ ' + output)
         return title + "\n".join(elems)
 
-    def get_struct(self):
-        return self._struct
+    def __eq__(self, other):
+        return self.get_struct() == other.get_struct()
 
-    def set_struct(self, struct):
-        self._struct = struct
 
 class Member:
     def __init__(self, type, name, default=None):
         self.type = type # class
         self.name = name # str
         self.default = default # default value
+
+    def get_type(self):
+        return self.type
 
     def get_name(self):
         return self.name
@@ -99,41 +115,6 @@ class Members:
 
 if __name__ == '__main__':
 
-    ProtocolVersion = Uint16
-    Random = Opaque(32)
-    OpaqueUint8 = Opaque(size_t=Uint8)
-    CipherSuite = Uint16
-    CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-    Extensions = List(size_t=Uint16, elem_t=Opaque(0))
-
-    class ClientHello(StructMeta):
-        struct = Members([
-            Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-            Member(Random, 'random'),
-            Member(OpaqueUint8, 'legacy_session_id'),
-            Member(CipherSuites, 'cipher_suites'),
-            Member(OpaqueUint8, 'legacy_compression_methods'),
-            Member(Extensions, 'extensions', Extensions([]))
-        ])
-
-    ch = ClientHello(
-        random=Random(bytes.fromhex(
-            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
-        legacy_session_id=OpaqueUint8(bytes.fromhex(
-            'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
-        cipher_suites=CipherSuites([
-            CipherSuite(0x1302), CipherSuite(0x1303),
-            CipherSuite(0x1301), CipherSuite(0x00ff)]),
-        legacy_compression_methods=OpaqueUint8(b'\x00'),
-        extensions=Extensions([]),
-    )
-
-    print("---")
-    print(ch)
-    print("---")
-    print(hexdump(bytes(ch)))
-
-
     import unittest
 
     class TestUint(unittest.TestCase):
@@ -162,6 +143,9 @@ if __name__ == '__main__':
             self.assertTrue(hasattr(s, 'fieldC'))
             self.assertTrue(isinstance(s.fieldC, ListUint8OpaqueUint8))
 
+            self.assertEqual(bytes(s), b'\x00\x01\x01\xff\x04\x01\xaa\x01\xbb')
+            self.assertEqual(Sample1.from_bytes(bytes(s)), s)
+
         def test_metastruct_recursive(self):
 
             class Sample1(StructMeta):
@@ -182,7 +166,9 @@ if __name__ == '__main__':
 
             self.assertTrue(isinstance(s.fieldB, Sample1))
             self.assertTrue(isinstance(s.fieldB.fieldC, Uint16))
+
             self.assertEqual(bytes(s), b'\xaa\xaa\xbb\xbb\xcc\xcc')
+            self.assertEqual(Sample2.from_bytes(bytes(s)), s)
 
         def test_clienthello(self):
 
@@ -226,5 +212,8 @@ if __name__ == '__main__':
                 '00                                              ' )
 
             self.assertEqual(bytes(ch), expected)
+
+            ch2 = ClientHello.from_bytes(bytes(ch))
+            self.assertEqual(ch, ch2)
 
     unittest.main()
