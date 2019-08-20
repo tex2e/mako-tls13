@@ -2,6 +2,7 @@
 import abc # 抽象基底クラス
 import struct # バイト列の解釈
 import io # バイトストリーム操作
+from enum import Enum
 
 # 全ての型が継承するクラス
 class Type(abc.ABC):
@@ -184,7 +185,7 @@ def List(size_t, elem_t):
             return True
 
         def __repr__(self):
-            return repr(self.array)
+            return 'List<%s>%s' % (self.__class__.size_t.__name__, repr(self.array))
 
     List.size_t = size_t
     List.elem_t = elem_t

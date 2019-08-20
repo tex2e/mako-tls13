@@ -113,6 +113,13 @@ class Members:
             setattr(this, name, value)
         return self
 
+class Select:
+    def __init__(self, switch, cases):
+        assert isinstance(switch, str)
+        assert isinstance(cases, dict)
+        self.switch = switch
+        self.cases = cases
+
 
 if __name__ == '__main__':
 

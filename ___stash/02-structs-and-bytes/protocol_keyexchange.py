@@ -1,20 +1,6 @@
 
-from enum import Enum
-from type import Uint8, Uint16, Opaque, List
-from structmeta import StructMeta, Members, Member
-
-# ------------------------------------------------------------------------------
-# Record Layer
-
-class ContentType(Enum):
-    size = 1
-    size_t = Uint8
-
-    invalid = Uint8(0)
-    change_cipher_spec = Uint8(20)
-    alert = Uint8(21)
-    handshake = Uint8(22)
-    application_data = Uint8(23)
+from type import Uint8, Uint16, Opaque, List, Enum
+from structmeta import StructMeta, Members, Member, Select
 
 # ------------------------------------------------------------------------------
 # Key Exchange Layer
