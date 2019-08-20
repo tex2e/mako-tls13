@@ -14,19 +14,26 @@ class Type(abc.ABC):
 # UintNの抽象クラス
 class Uint(Type):
     def __init__(self, value):
+        assert self.__class__ != Uint, \
+            "Uint (Abstract Class) cannot construct instance!"
         assert isinstance(value, int)
         max_value = 1 << (8 * self.__class__.size)
         assert 0 <= value < max_value
         self.value = value
 
-    @abc.abstractmethod # 抽象メソッド
     def __bytes__(self):
-        raise NotImplementedError()
+        res = []
+        tmp = self.value
+        for i in range(self.__class__.size):
+            res.append(bytes([tmp & 0xff]))
+            tmp >>= 8
+        res.reverse()
+        return self.value.to_bytes(self.__class__.size, byteorder='big')
 
     @classmethod
-    @abc.abstractmethod # 抽象メソッド
-    def from_fs(cls, data):
-        raise NotImplementedError()
+    def from_fs(cls, fs):
+        data = fs.read(cls.size)
+        return cls(int.from_bytes(data, byteorder='big'))
 
     def __len__(self):
         return self.__class__.size
@@ -43,46 +50,18 @@ class Uint(Type):
         width = self.__class__.size * 2
         return "{}(0x{:0{width}x})".format(classname, value, width=width)
 
+
 class Uint8(Uint):
     size = 1  # unsinged char
-
-    def __bytes__(self):
-        return struct.pack('>B', self.value)
-
-    @classmethod
-    def from_fs(cls, fs):
-        return Uint8(struct.unpack('>B', fs.read(cls.size))[0])
 
 class Uint16(Uint):
     size = 2  # unsigned short
 
-    def __bytes__(self):
-        return struct.pack('>H', self.value)
-
-    @classmethod
-    def from_fs(cls, fs):
-        return Uint16(struct.unpack('>H', fs.read(cls.size))[0])
-
 class Uint24(Uint):
     size = 3
 
-    def __bytes__(self):
-        return struct.pack('>BH', self.value >> 16, self.value & 0xffff)
-
-    @classmethod
-    def from_fs(cls, fs):
-        high, low = struct.unpack('>BH', fs.read(cls.size))
-        return Uint24((high << 16) + low)
-
 class Uint32(Uint):
     size = 4  # unsigned int
-
-    def __bytes__(self):
-        return struct.pack('>I', self.value)
-
-    @classmethod
-    def from_fs(cls, fs):
-        return Uint32(struct.unpack('>I', fs.read(cls.size))[0])
 
 
 def Opaque(size_t):
@@ -176,10 +155,9 @@ def List(size_t, elem_t):
             size_t = cls.size_t
             elem_t = cls.elem_t
             list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
-            size_size = size_t.size # リストの長さを表す部分の長さ
             elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
-            if elem_t.size: # 要素が固定長の場合
+            if elem_size: # 要素が固定長の場合
                 array = []
                 for i in range(list_size // elem_size): # 要素数
                     array.append(elem_t.from_fs(fs))
@@ -188,11 +166,11 @@ def List(size_t, elem_t):
             else: # 要素が可変長の場合
                 array = []
                 # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
-                while fs.tell() < size_size + list_size:
-                    # print('---')
-                    # print(fs.tell(), size_size + list_size)
+                startpos = fs.tell()
+                while (fs.tell() - startpos) < list_size:
+                    # print('>>>', fs.tell() - startpos, list_size)
                     elem = elem_t.from_fs(fs)
-                    # print(fs.tell(), size_size + list_size)
+                    # print('>>>', fs.tell() - startpos, list_size)
                     array.append(elem)
                 return List(array)
 
@@ -220,15 +198,18 @@ if __name__ == '__main__':
     class TestUint(unittest.TestCase):
 
         def test_uint(self):
-            with self.assertRaises(TypeError) as cm:
+            with self.assertRaises(Exception) as cm:
                 a = Uint(123)
 
         def test_uint8(self):
             u = Uint8(0)
+            self.assertEqual(bytes(u), b'\x00')
+            self.assertEqual(Uint8.from_bytes(bytes(u)), u)
+            u = Uint8(0x12)
+            self.assertEqual(bytes(u), b'\x12')
             self.assertEqual(Uint8.from_bytes(bytes(u)), u)
             u = Uint8(255)
             self.assertEqual(bytes(u), b'\xff')
-            # 変換して復元したものが元に戻るか確認する
             self.assertEqual(Uint8.from_bytes(bytes(u)), u)
 
         def test_uint8_out_range(self):
@@ -240,6 +221,10 @@ if __name__ == '__main__':
 
         def test_uint16(self):
             u = Uint16(0)
+            self.assertEqual(bytes(u), b'\x00\x00')
+            self.assertEqual(Uint16.from_bytes(bytes(u)), u)
+            u = Uint16(0x0102)
+            self.assertEqual(bytes(u), b'\x01\x02')
             self.assertEqual(Uint16.from_bytes(bytes(u)), u)
             u = Uint16(65535)
             self.assertEqual(bytes(u), b'\xff\xff')
@@ -253,6 +238,10 @@ if __name__ == '__main__':
 
         def test_uint24(self):
             u = Uint24(0)
+            self.assertEqual(bytes(u), b'\x00\x00\x00')
+            self.assertEqual(Uint24.from_bytes(bytes(u)), u)
+            u = Uint24(0x010203)
+            self.assertEqual(bytes(u), b'\x01\x02\x03')
             self.assertEqual(Uint24.from_bytes(bytes(u)), u)
             u = Uint24(16777215)
             self.assertEqual(bytes(u), b'\xff\xff\xff')
@@ -266,6 +255,10 @@ if __name__ == '__main__':
 
         def test_uint32(self):
             u = Uint32(0)
+            self.assertEqual(bytes(u), b'\x00\x00\x00\x00')
+            self.assertEqual(Uint32.from_bytes(bytes(u)), u)
+            u = Uint32(0x01020304)
+            self.assertEqual(bytes(u), b'\x01\x02\x03\x04')
             self.assertEqual(Uint32.from_bytes(bytes(u)), u)
             u = Uint32(4294967295)
             self.assertEqual(bytes(u), b'\xff\xff\xff\xff')

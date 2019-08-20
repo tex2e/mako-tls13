@@ -1,7 +1,7 @@
 
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
-from type import Type, Uint8, Uint16, Opaque, List
+from type import Type
 from disp import hexdump
 
 # TLSメッセージの構造体を表すためのクラス群
@@ -77,7 +77,7 @@ class StructMeta(Type):
     def __eq__(self, other):
         return self.get_struct() == other.get_struct()
 
-
+# 構造体の要素を表すクラス
 class Member:
     def __init__(self, type, name, default=None):
         self.type = type # class
@@ -93,6 +93,7 @@ class Member:
     def get_default(self):
         return self.default
 
+# 構造体の要素の集合を表すクラス
 class Members:
     def __init__(self, members=[]):
         self.members = members # array
@@ -100,9 +101,9 @@ class Members:
     def get_members(self):
         return self.members
 
+    # メタ構造を元に与えられた引数を自身のプロパティとして保存する
     def set_args(self, this, **kwargs):
-        assert(isinstance(this, StructMeta))
-        # this == instance pointer (self)
+        assert isinstance(this, StructMeta)
         for member in self.get_members():
             name = member.get_name()
             if name in kwargs.keys():
@@ -115,6 +116,7 @@ class Members:
 
 if __name__ == '__main__':
 
+    from type import Uint8, Uint16, Opaque, List
     import unittest
 
     class TestUint(unittest.TestCase):
@@ -169,6 +171,32 @@ if __name__ == '__main__':
 
             self.assertEqual(bytes(s), b'\xaa\xaa\xbb\xbb\xcc\xcc')
             self.assertEqual(Sample2.from_bytes(bytes(s)), s)
+
+        def test_metastruct_keep_rest_bytes(self):
+            import io
+
+            OpaqueUint8 = Opaque(size_t=Uint8)
+            ListUint8OpaqueUint8 = List(size_t=Uint8, elem_t=Opaque(size_t=Uint8))
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Uint16, 'fieldA'),
+                    Member(OpaqueUint8, 'fieldB'),
+                    Member(ListUint8OpaqueUint8, 'fieldC'),
+                ])
+
+            s = Sample1(fieldA=Uint16(0x1),
+                        fieldB=OpaqueUint8(b'\xff'),
+                        fieldC=ListUint8OpaqueUint8([OpaqueUint8(b'\xaa'),
+                                                     OpaqueUint8(b'\xbb')]))
+
+            deadbeef = bytes.fromhex('deadbeef')
+            fs = io.BytesIO(bytes(s) + deadbeef)
+
+            s2 = Sample1.from_fs(fs)
+
+            rest = fs.read()
+            self.assertEqual(rest, deadbeef)
 
         def test_clienthello(self):
 
