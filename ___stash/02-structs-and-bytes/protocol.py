@@ -1,6 +1,7 @@
 
+from enum import Enum
 from type import Uint8, Uint16, Opaque, List
-from metastruct import MetaStruct, Members, Member
+from structmeta import StructMeta, Members, Member
 
 # ------------------------------------------------------------------------------
 # Record Layer
@@ -25,27 +26,25 @@ CipherSuite = Uint16
 CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
 Extensions = List(size_t=Uint16, elem_t=Opaque(0))
 
-class ClientHello(MetaStruct):
-    def __init__(self, **kwargs):
-        self._struct = Members(self, [
-            Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-            Member(Random, 'random'),
-            Member(OpaqueUint8, 'legacy_session_id'),
-            Member(CipherSuites, 'cipher_suites'),
-            Member(OpaqueUint8, 'legacy_compression_methods'),
-            Member(Extensions, 'extensions', Extensions([]))
-        ]).set_args(**kwargs)
+class ClientHello(StructMeta):
+    struct = Members([
+        Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
+        Member(Random, 'random'),
+        Member(OpaqueUint8, 'legacy_session_id'),
+        Member(CipherSuites, 'cipher_suites'),
+        Member(OpaqueUint8, 'legacy_compression_methods'),
+        Member(Extensions, 'extensions', Extensions([]))
+    ])
 
-class ServerHello(MetaStruct):
-    def __init__(self, **kwargs):
-        self._struct = Members(self, [
-            Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-            Member(Random, 'random'),
-            Member(OpaqueUint8, 'legacy_session_id_echo'),
-            Member(CipherSuite, 'cipher_suite'),
-            Member(OpaqueUint8, 'legacy_compression_methods'),
-            Member(Extensions, 'extensions', Extensions([]))
-        ]).set_args(**kwargs)
+class ServerHello(StructMeta):
+    struct = Members([
+        Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
+        Member(Random, 'random'),
+        Member(OpaqueUint8, 'legacy_session_id_echo'),
+        Member(CipherSuite, 'cipher_suite'),
+        Member(OpaqueUint8, 'legacy_compression_methods'),
+        Member(Extensions, 'extensions', Extensions([]))
+    ])
 
 
 if __name__ == '__main__':

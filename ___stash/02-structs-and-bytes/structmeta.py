@@ -8,7 +8,7 @@ from disp import hexdump
 # TLSメッセージの構造体を表すためのクラス群
 # 使い方：
 #
-#   class ClientHello(MetaStruct):
+#   class ClientHello(StructMeta):
 #     struct = Members([
 #       Member(ProtocolVersion, 'legacy_version'),
 #       Member(Random, 'random'),
@@ -19,7 +19,7 @@ from disp import hexdump
 #     ])
 #
 
-class MetaStruct(abc.ABC):
+class StructMeta(abc.ABC):
     def __init__(self, **kwargs):
         self.set_struct(self.__class__.struct.set_args(self, **kwargs))
 
@@ -40,8 +40,8 @@ class MetaStruct(abc.ABC):
         # 出力は次のようにする
         # 1. 各要素を表示するときは次のようにし、出力幅が80を超えないようにする
         #     + 要素名: 型(値)
-        # 2. 要素もMetaStructのときは、次のようにする。
-        #     + 要素名: MetaStruct名:
+        # 2. 要素もStructMetaのときは、次のようにする。
+        #     + 要素名: StructMeta名:
         #       + 要素: 型(値)...
         title = "%s:\n" % self.__class__.__name__
         elems = []
@@ -50,8 +50,8 @@ class MetaStruct(abc.ABC):
             elem = getattr(self, name)
             content = repr(elem)
             output = '%s: %s' % (name, content)
-            # 要素のMetaStructは出力が複数行になるので、その要素をインデントさせる
-            if isinstance(elem, MetaStruct):
+            # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
+            if isinstance(elem, StructMeta):
                 output = textwrap.indent(output, prefix="  ").strip()
             # その他の要素は出力が1行になるので、コンソールの幅を超えないように出力させる
             else:
@@ -85,7 +85,7 @@ class Members:
         return self.members
 
     def set_args(self, this, **kwargs):
-        assert(isinstance(this, MetaStruct))
+        assert(isinstance(this, StructMeta))
         # this == instance pointer (self)
         for member in self.get_members():
             name = member.get_name()
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
     Extensions = List(size_t=Uint16, elem_t=Opaque(0))
 
-    class ClientHello(MetaStruct):
+    class ClientHello(StructMeta):
         struct = Members([
             Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
             Member(Random, 'random'),
@@ -143,7 +143,7 @@ if __name__ == '__main__':
             OpaqueUint8 = Opaque(size_t=Uint8)
             ListUint8OpaqueUint8 = List(size_t=Uint8, elem_t=Opaque(size_t=Uint8))
 
-            class Sample1(MetaStruct):
+            class Sample1(StructMeta):
                 struct = Members([
                     Member(Uint16, 'fieldA'),
                     Member(OpaqueUint8, 'fieldB'),
@@ -164,13 +164,13 @@ if __name__ == '__main__':
 
         def test_metastruct_recursive(self):
 
-            class Sample1(MetaStruct):
+            class Sample1(StructMeta):
                 struct = Members([
                     Member(Uint16, 'fieldC'),
                     Member(Uint16, 'fieldD'),
                 ])
 
-            class Sample2(MetaStruct):
+            class Sample2(StructMeta):
                 struct = Members([
                     Member(Uint16, 'fieldA'),
                     Member(Sample1, 'fieldB'),
@@ -193,7 +193,7 @@ if __name__ == '__main__':
             CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
             Extensions = List(size_t=Uint16, elem_t=Opaque(0))
 
-            class ClientHello(MetaStruct):
+            class ClientHello(StructMeta):
                 struct = Members([
                     Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
                     Member(Random, 'random'),
