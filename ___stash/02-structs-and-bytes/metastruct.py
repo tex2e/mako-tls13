@@ -1,6 +1,7 @@
 
 import abc # 抽象基底クラス
 import io # バイトストリーム操作
+import textwrap # テキストの折り返しと詰め込み
 from type import Uint8, Uint16, Opaque, List
 from disp import hexdump
 
@@ -36,12 +37,26 @@ class MetaStruct(abc.ABC):
         # TODO:
 
     def __repr__(self):
+        # 出力は次のようにする
+        # 1. 各要素を表示するときは次のようにし、出力幅が80を超えないようにする
+        #     + 要素名: 型(値)
+        # 2. 要素もMetaStructのときは、次のようにする。
+        #     + 要素名: MetaStruct名:
+        #       + 要素: 型(値)...
         title = "%s:\n" % self.__class__.__name__
         elems = []
         for member in self.get_struct().get_members():
             name = member.get_name()
             elem = getattr(self, name)
-            elems.append('+ %s: %s' % (name, repr(elem)))
+            content = repr(elem)
+            output = '%s: %s' % (name, content)
+            # 要素のMetaStructは出力が複数行になるので、その要素をインデントさせる
+            if isinstance(elem, MetaStruct):
+                output = textwrap.indent(output, prefix="  ").strip()
+            # その他の要素は出力が1行になるので、コンソールの幅を超えないように出力させる
+            else:
+                output = '\n  '.join(textwrap.wrap(output, width=70))
+            elems.append('+ ' + output)
         return title + "\n".join(elems)
 
     def get_struct(self):
@@ -146,6 +161,28 @@ if __name__ == '__main__':
             self.assertTrue(isinstance(s.fieldB, OpaqueUint8))
             self.assertTrue(hasattr(s, 'fieldC'))
             self.assertTrue(isinstance(s.fieldC, ListUint8OpaqueUint8))
+
+        def test_metastruct_recursive(self):
+
+            class Sample1(MetaStruct):
+                struct = Members([
+                    Member(Uint16, 'fieldC'),
+                    Member(Uint16, 'fieldD'),
+                ])
+
+            class Sample2(MetaStruct):
+                struct = Members([
+                    Member(Uint16, 'fieldA'),
+                    Member(Sample1, 'fieldB'),
+                ])
+
+            s = Sample2(fieldA=Uint16(0xaaaa),
+                        fieldB=Sample1(fieldC=Uint16(0xbbbb),
+                                       fieldD=Uint16(0xcccc)))
+
+            self.assertTrue(isinstance(s.fieldB, Sample1))
+            self.assertTrue(isinstance(s.fieldB.fieldC, Uint16))
+            self.assertEqual(bytes(s), b'\xaa\xaa\xbb\xbb\xcc\xcc')
 
         def test_clienthello(self):
 
