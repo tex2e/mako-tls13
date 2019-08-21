@@ -31,7 +31,7 @@ class HandshakeType(Enum):
 class Handshake(StructMeta):
     struct = Members([
         Member(HandshakeType, 'msg_type'),
-        Member(Uint24, 'length'),
+        Member(Uint24, 'length', lambda args: Uint24(len(args.get('msg')))),
         Member(Select('msg_type', cases={
             HandshakeType.client_hello: ClientHello,
         }), 'msg'),
@@ -63,13 +63,10 @@ if __name__ == '__main__':
                 legacy_compression_methods=OpaqueUint8(b'\x00'),
                 extensions=Extensions([]),
             )
-            ch_byte = bytes(ch)
 
             h = Handshake(
                 msg_type=HandshakeType.client_hello,
-                length=Uint24(len(ch_byte)),
-                msg=ch,
-            )
+                msg=ch)
 
             h2 = Handshake.from_bytes(bytes(h))
             self.assertEqual(h2, h)

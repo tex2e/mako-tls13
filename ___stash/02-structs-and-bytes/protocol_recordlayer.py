@@ -22,7 +22,7 @@ class TLSPlaintext(StructMeta):
     struct = Members([
         Member(ContentType, 'type'),
         Member(ProtocolVersion, 'legacy_record_version', ProtocolVersion(0x0303)),
-        Member(Uint16, 'length'),
+        Member(Uint16, 'length', lambda args: Uint16(len(args.get('fragment')))),
         Member(Select('type', cases={
             ContentType.handshake: Handshake,
         }), 'fragment'),
@@ -57,20 +57,14 @@ if __name__ == '__main__':
                 legacy_compression_methods=OpaqueUint8(b'\x00'),
                 extensions=Extensions([]),
             )
-            ch_byte = bytes(ch)
 
             h = Handshake(
                 msg_type=HandshakeType.client_hello,
-                length=Uint24(len(ch_byte)),
-                msg=ch,
-            )
-            h_byte = bytes(h)
+                msg=ch)
 
             plain = TLSPlaintext(
                 type=ContentType.handshake,
-                length=Uint16(len(h_byte)),
-                fragment=h
-            )
+                fragment=h)
 
             self.assertEqual(TLSPlaintext.from_bytes(bytes(plain)), plain)
 

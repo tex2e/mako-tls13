@@ -85,6 +85,9 @@ class StructMeta(Type):
                 return False
         return True
 
+    def __len__(self):
+        return len(bytes(self))
+
 # 構造体の要素を表すクラス
 class Member:
     def __init__(self, type, name, default=None):
@@ -98,7 +101,13 @@ class Member:
     def get_name(self):
         return self.name
 
-    def get_default(self):
+    # キーワード引数で与えられなかった時に呼び出される。
+    # 普通は .default の値を返すが、.default がラムダ関数であれば、評価した値を返す。
+    # ラムダ関数を評価する際は、キーワード引数から導出するもの(例えば length など)があるので、
+    # キーワード引数の辞書をラムダの引数として与える。
+    def get_default(self, args_dict=None):
+        if callable(self.default):
+            return self.default(args_dict)
         return self.default
 
 # 構造体の要素の集合を表すクラス
@@ -109,7 +118,7 @@ class Members:
     def get_members(self):
         return self.members
 
-    # メタ構造を元に与えられた引数をthisのプロパティとして格納する
+    # メタ構造を元に与えられた引数をthisのプロパティとして格納する。
     def set_props(self, this, **kwargs):
         assert isinstance(this, StructMeta)
         for member in self.get_members():
@@ -117,7 +126,7 @@ class Members:
             if name in kwargs.keys():
                 value = kwargs.get(name)
             else:
-                value = member.get_default()
+                value = member.get_default(kwargs)
             setattr(this, name, value)
         return self
 
@@ -180,6 +189,32 @@ if __name__ == '__main__':
 
             self.assertEqual(s1, s2)
             self.assertNotEqual(s1, s3)
+
+        def test_structmeta_default_value(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'fieldA', Uint8(0x01)),
+                    Member(Uint8, 'fieldB'),
+                ])
+
+            s1 = Sample1(fieldA=Uint8(0x01), fieldB=Uint8(0x12))
+            s2 = Sample1(fieldB=Uint8(0x12))
+
+            self.assertEqual(s1, s2)
+
+        def test_structmeta_default_value(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'length',
+                        lambda args: Uint8(len(bytes(args.get('fragment'))))),
+                    Member(Opaque(Uint8), 'fragment'),
+                ])
+
+            s1 = Sample1(fragment=Opaque(Uint8)(b'test'))
+
+            self.assertEqual(s1.length, Uint8(5))
 
         def test_structmeta_recursive(self):
 
