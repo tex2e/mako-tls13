@@ -20,7 +20,7 @@ from disp import hexdump
 
 class StructMeta(Type):
     def __init__(self, **kwargs):
-        self.set_struct(self.__class__.struct.set_args(self, **kwargs))
+        self.__class__.struct.set_props(self, **kwargs)
 
     def __bytes__(self):
         f = io.BytesIO()
@@ -33,23 +33,18 @@ class StructMeta(Type):
     @classmethod
     def from_fs(cls, fs):
         dict = {}
-        for member in cls.get_structmeta().get_members():
+        for member in cls.get_struct().get_members():
             name = member.get_name()
-            elem = member.get_type().from_fs(fs)
+            elem_t = member.get_type()
+            if isinstance(elem_t, Select):
+                elem_t = elem_t.select_type(dict.get(elem_t.switch))
+            elem = elem_t.from_fs(fs)
             dict[name] = elem
         return cls(**dict)
 
-    # 構造体のメタ情報は class.struct に格納する
     @classmethod
-    def get_structmeta(cls):
+    def get_struct(cls):
         return cls.struct
-
-    # 構造体に値を代入したものは self._struct に格納する
-    def get_struct(self):
-        return self._struct
-
-    def set_struct(self, mystruct):
-        self._struct = mystruct
 
     def __repr__(self):
         # 出力は次のようにする
@@ -75,7 +70,20 @@ class StructMeta(Type):
         return title + "\n".join(elems)
 
     def __eq__(self, other):
-        return self.get_struct() == other.get_struct()
+        self_members  = self.get_struct().get_members()
+        other_members = other.get_struct().get_members()
+        if len(self_members) != len(other_members):
+            return False
+        for self_member, other_member in zip(self_members, other_members):
+            self_member_name  = self_member.get_name()
+            other_member_name = other_member.get_name()
+            if self_member_name != other_member_name:
+                return False
+            self_elem  = getattr(self, self_member_name)
+            other_elem = getattr(other, other_member_name)
+            if self_elem != other_elem:
+                return False
+        return True
 
 # 構造体の要素を表すクラス
 class Member:
@@ -101,8 +109,8 @@ class Members:
     def get_members(self):
         return self.members
 
-    # メタ構造を元に与えられた引数を自身のプロパティとして保存する
-    def set_args(self, this, **kwargs):
+    # メタ構造を元に与えられた引数をthisのプロパティとして格納する
+    def set_props(self, this, **kwargs):
         assert isinstance(this, StructMeta)
         for member in self.get_members():
             name = member.get_name()
@@ -120,6 +128,9 @@ class Select:
         self.switch = switch
         self.cases = cases
 
+    def select_type(self, switch_value):
+        return self.cases.get(switch_value)
+
 
 if __name__ == '__main__':
 
@@ -128,7 +139,7 @@ if __name__ == '__main__':
 
     class TestUint(unittest.TestCase):
 
-        def test_metastruct(self):
+        def test_structmeta(self):
 
             OpaqueUint8 = Opaque(size_t=Uint8)
             ListUint8OpaqueUint8 = List(size_t=Uint8, elem_t=Opaque(size_t=Uint8))
@@ -155,7 +166,22 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), b'\x00\x01\x01\xff\x04\x01\xaa\x01\xbb')
             self.assertEqual(Sample1.from_bytes(bytes(s)), s)
 
-        def test_metastruct_recursive(self):
+        def test_structmeta_eq_neq(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'fieldA'),
+                    Member(Uint8, 'fieldB'),
+                ])
+
+            s1 = Sample1(fieldA=Uint8(0x01), fieldB=Uint8(0x12))
+            s2 = Sample1(fieldA=Uint8(0x01), fieldB=Uint8(0x12))
+            s3 = Sample1(fieldA=Uint8(0x01), fieldB=Uint8(0x21))
+
+            self.assertEqual(s1, s2)
+            self.assertNotEqual(s1, s3)
+
+        def test_structmeta_recursive(self):
 
             class Sample1(StructMeta):
                 struct = Members([
@@ -179,7 +205,7 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), b'\xaa\xaa\xbb\xbb\xcc\xcc')
             self.assertEqual(Sample2.from_bytes(bytes(s)), s)
 
-        def test_metastruct_keep_rest_bytes(self):
+        def test_structmeta_keep_rest_bytes(self):
             import io
 
             OpaqueUint8 = Opaque(size_t=Uint8)
@@ -205,50 +231,24 @@ if __name__ == '__main__':
             rest = fs.read()
             self.assertEqual(rest, deadbeef)
 
-        def test_clienthello(self):
+        def test_structmeta_select(self):
 
-            ProtocolVersion = Uint16
-            Random = Opaque(32)
-            OpaqueUint8 = Opaque(size_t=Uint8)
-            CipherSuite = Uint16
-            CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-            Extensions = List(size_t=Uint16, elem_t=Opaque(0))
-
-            class ClientHello(StructMeta):
+            class Sample1(StructMeta):
                 struct = Members([
-                    Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-                    Member(Random, 'random'),
-                    Member(OpaqueUint8, 'legacy_session_id'),
-                    Member(CipherSuites, 'cipher_suites'),
-                    Member(OpaqueUint8, 'legacy_compression_methods'),
-                    Member(Extensions, 'extensions', Extensions([]))
+                    Member(Opaque(Uint16), 'field'),
                 ])
-                def __init__(self, **kwargs):
-                    self.set_struct(ClientHello.struct.set_args(self, **kwargs))
 
-            ch = ClientHello(
-                random=Random(bytes.fromhex(
-                    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
-                legacy_session_id=OpaqueUint8(bytes.fromhex(
-                    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
-                cipher_suites=CipherSuites([
-                    CipherSuite(0x1302), CipherSuite(0x1303),
-                    CipherSuite(0x1301), CipherSuite(0x00ff)]),
-                legacy_compression_methods=OpaqueUint8(b'\x00'),
-                extensions=Extensions([]),
-            )
+            class Sample2(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'type'),
+                    Member(Select('type', cases={
+                        Uint8(0xaa): Opaque(0),
+                        Uint8(0xbb): Sample1,
+                    }), 'fragment')
+                ])
 
-            expected = bytes.fromhex(
-                '03 03 AA AA AA AA AA AA  AA AA AA AA AA AA AA AA' \
-                'AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA' \
-                'AA AA 20 BB BB BB BB BB  BB BB BB BB BB BB BB BB' \
-                'BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB' \
-                'BB BB BB 00 08 13 02 13  03 13 01 00 FF 01 00 00' \
-                '00                                              ' )
-
-            self.assertEqual(bytes(ch), expected)
-
-            ch2 = ClientHello.from_bytes(bytes(ch))
-            self.assertEqual(ch, ch2)
+            s1 = Sample2(type=Uint8(0xaa), fragment=Opaque(0)(b''))
+            self.assertEqual(bytes(s1), bytes.fromhex('aa'))
+            self.assertEqual(Sample2.from_bytes(bytes(s1)), s1)
 
     unittest.main()

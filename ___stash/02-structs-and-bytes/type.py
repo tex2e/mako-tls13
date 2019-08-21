@@ -50,6 +50,9 @@ class Uint(Type):
         width = self.__class__.size * 2
         return "{}(0x{:0{width}x})".format(classname, value, width=width)
 
+    def __hash__(self):
+        return hash((self.__class__.size, self.value))
+
 
 class Uint8(Uint):
     size = 1  # unsinged char
