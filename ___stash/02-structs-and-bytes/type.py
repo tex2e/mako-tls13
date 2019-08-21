@@ -324,13 +324,13 @@ if __name__ == '__main__':
             self.assertEqual(OpaqueVar2.from_bytes(bytes(o)), o)
 
 
-        def test_list___eq__(self):
+        def test_list_eq_neq(self):
             ListUint16 = List(size_t=Uint8, elem_t=Uint16)
             l1 = ListUint16([Uint16(0), Uint16(0xffff)])
             l2 = ListUint16([Uint16(0), Uint16(0xffff)])
             l3 = ListUint16([Uint16(0), Uint16(0xfbff)])
-            self.assertTrue(l1 == l2)
-            self.assertTrue(l1 != l3)
+            self.assertEqual(l1, l2)
+            self.assertNotEqual(l1, l3)
 
         def test_list_fix(self):
             ListUint16 = List(size_t=Uint8, elem_t=Uint16)

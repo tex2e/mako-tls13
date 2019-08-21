@@ -61,5 +61,6 @@ if __name__ == '__main__':
                 '00                                              ' )
 
             self.assertEqual(bytes(ch), expected)
+            self.assertEqual(ClientHello.from_bytes(bytes(ch)), ch)
 
     unittest.main()
