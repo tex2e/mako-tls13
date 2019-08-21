@@ -5,6 +5,8 @@ from enum import Enum as BuildinEnum
 
 # 全ての型が継承するクラス
 class Type:
+    size = None # 固定長のときに使用する
+    size_t = None # 可変長のときに使用する
     # バイト列から構造体を構築するメソッドの中では、
     # バイト列の代わりにストリームを渡すことで、読み取った文字数をストリームが保持する。
     @classmethod
@@ -109,7 +111,6 @@ def OpaqueVar(size_t):
 
     # 可変長のOpaque (e.g. opaque string<0..15>)
     class OpaqueVar(Type):
-        size = None
         size_t = Uint
 
         def __init__(self, byte):
@@ -143,12 +144,12 @@ def OpaqueVar(size_t):
     return OpaqueVar
 
 
+# 配列の構造を表すためのクラス
 def List(size_t, elem_t):
 
     class List(Type):
-        size = None
-        size_t = Uint
-        elem_t = None # Elements' Type
+        size_t = None # リストの長さを表す部分の型
+        elem_t = None # リストの要素の型
 
         def __init__(self, array):
             self.array = array
@@ -199,9 +200,10 @@ def List(size_t, elem_t):
     return List
 
 
+# 列挙型を表すためのクラス
 class Enum(Type, BuildinEnum):
-    # Enumクラスの子クラスは以下のクラス変数を定義する
-    # elem_t = UintN  # Enumの要素の型
+    # 親クラスにクラス変数を書くと、子クラスでEnumが定義できなくなるので、親では定義しないこと。
+    # elem_t = None # Enumの要素の型(例えば Uint16)
 
     # Enum は .name でラベル名、.value で値を得ることができる
     def __bytes__(self):
