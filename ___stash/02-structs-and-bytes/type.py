@@ -68,6 +68,13 @@ class Uint32(Uint):
 
 
 def Opaque(size_t):
+    if isinstance(size_t, int): # 引数がintのときは固定長
+        return OpaqueFix(size_t)
+    if issubclass(size_t, Uint): # 引数がUintNのときは可変長
+        return OpaqueVar(size_t)
+    raise TypeError("size's type must be an int or Uint class.")
+
+def OpaqueFix(size):
 
     # 固定長のOpaque (e.g. opaque string[16])
     class OpaqueFix(Type):
@@ -94,6 +101,11 @@ def Opaque(size_t):
 
         def __repr__(self):
             return 'Opaque[%d](%s)' % (OpaqueFix.size, repr(self.byte))
+
+    OpaqueFix.size = size
+    return OpaqueFix
+
+def OpaqueVar(size_t):
 
     # 可変長のOpaque (e.g. opaque string<0..15>)
     class OpaqueVar(Type):
@@ -127,14 +139,8 @@ def Opaque(size_t):
             return 'Opaque<%s>(%s)' % \
                 (OpaqueVar.size_t.__name__, repr(self.byte))
 
-    if isinstance(size_t, int): # 引数がintのときは固定長
-        OpaqueFix.size = size_t
-        return OpaqueFix
-    if issubclass(size_t, Uint): # 引数がUintNのときは可変長
-        OpaqueVar.size = None
-        OpaqueVar.size_t = size_t
-        return OpaqueVar
-    raise TypeError("size's type must be an int or Uint class.")
+    OpaqueVar.size_t = size_t
+    return OpaqueVar
 
 
 def List(size_t, elem_t):
