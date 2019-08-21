@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
             self.assertEqual(s1, s2)
 
-        def test_structmeta_default_value(self):
+        def test_structmeta_default_lambda(self):
 
             class Sample1(StructMeta):
                 struct = Members([
