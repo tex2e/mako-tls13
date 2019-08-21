@@ -1,6 +1,7 @@
 
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
+import re # 正規表現
 from type import Type
 from disp import hexdump
 
@@ -19,8 +20,8 @@ from disp import hexdump
 #
 
 class StructMeta(Type):
-    def __init__(self, **kwargs):
-        self.__class__.struct.set_props(self, **kwargs)
+    def __init__(self, lazy_eval=False, **kwargs):
+        self.__class__.struct.set_props(self, lazy_eval=lazy_eval, **kwargs)
 
     def __bytes__(self):
         f = io.BytesIO()
@@ -31,23 +32,40 @@ class StructMeta(Type):
         return f.getvalue()
 
     @classmethod
-    def from_fs(cls, fs):
-        dict = {}
+    def from_fs(cls, fs, parent=None):
+        # デフォルト値などを導出せずにインスタンス化する
+        instance = cls(lazy_eval=True)
+        setattr(instance, 'parent', parent) # 子が親インスタンスを参照できるようにする
+
         for member in cls.get_struct().get_members():
             name = member.get_name()
             elem_t = member.get_type()
-            # 型がSelectのときは、状況に応じて型が変わる
+            # 型がSelectのときは、既に格納した値(typeなど)から型を決定する
             if isinstance(elem_t, Select):
-                # 既に格納した値(typeなど)から型を決定する場合
-                if elem_t.is_depend_on_props():
-                    value = dict.get(elem_t.switch)
-                # クラス変数の値から型を決定する場合
-                elif elem_t.is_depend_on_class():
-                    value = getattr(cls, elem_t.switch)
+                # ドットの数は現在のインスタンスから親インスタンスに上がっていく回数を表す
+                # Example)
+                #   .msg_type または msg_type : 現在の構造体の変数 msg_type を参照する
+                #   ..msg_type : 親の構造体の変数 msg_type を参照する
+                count = len(re.match(r'^\.*', elem_t.switch)[0])
+                parent_nest = count - 1 if count > 0 else 0
+                # ドットの数の分だけ親をさかのぼる
+                tmp = instance
+                for i in range(parent_nest):
+                    tmp = tmp.parent
+                # 既に格納した値の取得
+                member_name = elem_t.switch.lstrip('.')
+                value = getattr(tmp, member_name)
+                # 既に格納した値から使用する型を決定する
                 elem_t = elem_t.select_type(value)
-            elem = elem_t.from_fs(fs)
-            dict[name] = elem
-        return cls(**dict)
+
+            # バイト列から構造体への変換
+            if isinstance(elem_t, type) and issubclass(elem_t, StructMeta):
+                elem = elem_t.from_fs(fs, instance)
+            else:
+                elem = elem_t.from_fs(fs)
+            # 値を構造体へ格納
+            setattr(instance, name, elem)
+        return instance
 
     @classmethod
     def get_struct(cls):
@@ -70,7 +88,7 @@ class StructMeta(Type):
             # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
             if isinstance(elem, StructMeta):
                 output = textwrap.indent(output, prefix="  ").strip()
-            # その他の要素は出力が1行になるので、コンソールの幅を超えないように出力させる
+            # その他の要素は出力が1行になるので、コンソールの幅を超えないように折返し出力させる
             else:
                 output = '\n  '.join(textwrap.wrap(output, width=70))
             elems.append('+ ' + output)
@@ -128,11 +146,16 @@ class Members:
         return self.members
 
     # メタ構造を元に与えられた引数をthisのプロパティとして格納する。
-    def set_props(self, this, **kwargs):
+    # 構造体からバイト列を構築する時はlazy_eval=Falseにする。
+    # バイト列から構造体を構築する時はlazy_eval=Trueにする(デフォルト値を求める必要がないため)。
+    def set_props(self, this, lazy_eval=False, **kwargs):
         assert isinstance(this, StructMeta)
         for member in self.get_members():
+            # プロパティの追加
             name = member.get_name()
-            if name in kwargs.keys():
+            if lazy_eval: # lazy_evalが有効のときは、デフォルト値の導出を行わない
+                value = None
+            elif name in kwargs.keys():
                 value = kwargs.get(name)
             else:
                 value = member.get_default(kwargs)
@@ -141,21 +164,14 @@ class Members:
 
 # 状況に応じて型を選択するためのクラス
 class Select:
-    def __init__(self, switch, cases, depend_on_class=False):
+    def __init__(self, switch, cases):
         assert isinstance(switch, str)
         assert isinstance(cases, dict)
         self.switch = switch
         self.cases = cases
-        self.depend_on_class = depend_on_class
 
     def select_type(self, switch_value):
         return self.cases.get(switch_value)
-
-    def is_depend_on_props(self):
-        return not self.depend_on_class
-
-    def is_depend_on_class(self):
-        return self.depend_on_class
 
 
 if __name__ == '__main__':
@@ -284,7 +300,7 @@ if __name__ == '__main__':
             rest = fs.read()
             self.assertEqual(rest, deadbeef)
 
-        def test_structmeta_select_depend_on_props(self):
+        def test_structmeta_select(self):
 
             class Sample1(StructMeta):
                 struct = Members([
@@ -304,35 +320,70 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s1), bytes.fromhex('aa'))
             self.assertEqual(Sample2.from_bytes(bytes(s1)), s1)
 
-        def test_structmeta_select_depend_on_class(self):
+        def test_structmeta_parent(self):
 
-            def Sample1(peer_name):
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Select('..parent_field', cases={
+                        Uint8(0xaa): Uint8,
+                        Uint8(0xbb): Uint16,
+                    }), 'child_field')
+                ])
 
-                class Sample1(StructMeta):
-                    peer_name = None # 'client' or 'server'
-                    struct = Members([
-                        Member(Select('peer_name', depend_on_class=True, cases={
-                            'client': Uint8,
-                            'server': Uint16,
-                        }), 'fragment')
-                    ])
+            class Sample2(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_field'),
+                    Member(Sample1, 'fragment')
+                ])
 
-                Sample1.peer_name = peer_name
-                return Sample1
-
-            SampleClient = Sample1('client')
-            SampleServer = Sample1('server')
-
-            s1 = SampleClient(fragment=Uint8(0x01))
-            s2 = SampleClient(fragment=Uint16(0x0112))
-            s1_byte = b'\x01'
-            s2_byte = b'\x01\x12'
+            s1 = Sample2(
+                parent_field=Uint8(0xaa),
+                fragment=Sample1(
+                    child_field=Uint8(0xff)))
+            s1_byte = bytes.fromhex('aa ff')
+            s2 = Sample2(
+                parent_field=Uint8(0xbb),
+                fragment=Sample1(
+                    child_field=Uint16(0xffff)))
+            s2_byte = bytes.fromhex('bb ffff')
 
             self.assertEqual(bytes(s1), s1_byte)
             self.assertEqual(bytes(s2), s2_byte)
+            self.assertEqual(Sample2.from_bytes(bytes(s1)), s1)
+            self.assertEqual(Sample2.from_bytes(bytes(s2)), s2)
 
-            self.assertEqual(SampleClient.from_bytes(s1_byte), s1)
-            self.assertEqual(SampleServer.from_bytes(s2_byte), s2)
+        def test_structmeta_multiple_parents(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Select('...parent_fieldA', cases={
+                        Uint8(0xaa): Uint8,
+                        Uint8(0xbb): Uint16,
+                    }), 'child_field')
+                ])
+
+            class Sample2(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_fieldB'),
+                    Member(Sample1, 'fragment')
+                ])
+
+            class Sample3(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_fieldA'),
+                    Member(Sample2, 'fragment')
+                ])
+
+            s = Sample3(
+                parent_fieldA=Uint8(0xbb),
+                fragment=Sample2(
+                    parent_fieldB=Uint8(0x12),
+                    fragment=Sample1(
+                        child_field=Uint16(0x0101))))
+            s_byte = bytes.fromhex('bb 12 0101')
+
+            self.assertEqual(bytes(s), s_byte)
+            self.assertEqual(Sample3.from_bytes(bytes(s)), s)
 
 
     unittest.main()
