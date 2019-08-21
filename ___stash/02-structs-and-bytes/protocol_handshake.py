@@ -8,8 +8,7 @@ from protocol_keyexchange import ClientHello
 # Handshake Layer
 
 class HandshakeType(Enum):
-    size = 1
-    size_t = Uint8
+    elem_t = Uint8
 
     hello_request_RESERVED = Uint8(0)
     client_hello = Uint8(1)
@@ -68,3 +67,5 @@ if __name__ == '__main__':
     )
 
     print(h)
+    from disp import hexdump
+    print(hexdump(bytes(h)))

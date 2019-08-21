@@ -8,8 +8,7 @@ from protocol_handshake import Handshake
 # Record Layer
 
 class ContentType(Enum):
-    size = 1
-    size_t = Uint8
+    elem_t = Uint8
 
     invalid = Uint8(0)
     change_cipher_spec = Uint8(20)

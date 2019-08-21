@@ -1,11 +1,10 @@
 
-import abc # 抽象基底クラス
 import struct # バイト列の解釈
 import io # バイトストリーム操作
-from enum import Enum
+from enum import Enum as BuildinEnum
 
 # 全ての型が継承するクラス
-class Type(abc.ABC):
+class Type:
     # バイト列から構造体を構築するメソッドの中では、
     # バイト列の代わりにストリームを渡すことで、読み取った文字数をストリームが保持する。
     @classmethod
@@ -190,6 +189,19 @@ def List(size_t, elem_t):
     List.size_t = size_t
     List.elem_t = elem_t
     return List
+
+
+class Enum(Type, BuildinEnum):
+    # Enumクラスの子クラスは以下のクラス変数を定義する
+    # elem_t = UintN  # Enumの要素の型
+
+    # Enum は .name でラベル名、.value で値を得ることができる
+    def __bytes__(self):
+        return bytes(self.value)
+
+    @classmethod
+    def from_fs(cls, fs):
+        return cls(cls.elem_t(fs.read(cls.elem_t.size)))
 
 
 if __name__ == '__main__':
