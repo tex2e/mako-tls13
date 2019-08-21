@@ -36,8 +36,15 @@ class StructMeta(Type):
         for member in cls.get_struct().get_members():
             name = member.get_name()
             elem_t = member.get_type()
+            # 型がSelectのときは、状況に応じて型が変わる
             if isinstance(elem_t, Select):
-                elem_t = elem_t.select_type(dict.get(elem_t.switch))
+                # 既に格納した値(typeなど)から型を決定する場合
+                if elem_t.is_depend_on_props():
+                    value = dict.get(elem_t.switch)
+                # クラス変数の値から型を決定する場合
+                elif elem_t.is_depend_on_class():
+                    value = getattr(cls, elem_t.switch)
+                elem_t = elem_t.select_type(value)
             elem = elem_t.from_fs(fs)
             dict[name] = elem
         return cls(**dict)
@@ -106,8 +113,10 @@ class Member:
     # ラムダ関数を評価する際は、キーワード引数から導出するもの(例えば length など)があるので、
     # キーワード引数の辞書をラムダの引数として与える。
     def get_default(self, args_dict=None):
+        # ラムダのときは、ラムダを評価した値をデフォルト値として返す。
         if callable(self.default):
             return self.default(args_dict)
+        # それ以外のときは、設定したデフォルト値を返す。
         return self.default
 
 # 構造体の要素の集合を表すクラス
@@ -130,20 +139,29 @@ class Members:
             setattr(this, name, value)
         return self
 
+# 状況に応じて型を選択するためのクラス
 class Select:
-    def __init__(self, switch, cases):
+    def __init__(self, switch, cases, depend_on_class=False):
         assert isinstance(switch, str)
         assert isinstance(cases, dict)
         self.switch = switch
         self.cases = cases
+        self.depend_on_class = depend_on_class
 
     def select_type(self, switch_value):
         return self.cases.get(switch_value)
+
+    def is_depend_on_props(self):
+        return not self.depend_on_class
+
+    def is_depend_on_class(self):
+        return self.depend_on_class
 
 
 if __name__ == '__main__':
 
     from type import Uint8, Uint16, Opaque, List
+
     import unittest
 
     class TestUint(unittest.TestCase):
@@ -266,7 +284,7 @@ if __name__ == '__main__':
             rest = fs.read()
             self.assertEqual(rest, deadbeef)
 
-        def test_structmeta_select(self):
+        def test_structmeta_select_depend_on_props(self):
 
             class Sample1(StructMeta):
                 struct = Members([
@@ -285,5 +303,36 @@ if __name__ == '__main__':
             s1 = Sample2(type=Uint8(0xaa), fragment=Opaque(0)(b''))
             self.assertEqual(bytes(s1), bytes.fromhex('aa'))
             self.assertEqual(Sample2.from_bytes(bytes(s1)), s1)
+
+        def test_structmeta_select_depend_on_class(self):
+
+            def Sample1(peer_name):
+
+                class Sample1(StructMeta):
+                    peer_name = None # 'client' or 'server'
+                    struct = Members([
+                        Member(Select('peer_name', depend_on_class=True, cases={
+                            'client': Uint8,
+                            'server': Uint16,
+                        }), 'fragment')
+                    ])
+
+                Sample1.peer_name = peer_name
+                return Sample1
+
+            SampleClient = Sample1('client')
+            SampleServer = Sample1('server')
+
+            s1 = SampleClient(fragment=Uint8(0x01))
+            s2 = SampleClient(fragment=Uint16(0x0112))
+            s1_byte = b'\x01'
+            s2_byte = b'\x01\x12'
+
+            self.assertEqual(bytes(s1), s1_byte)
+            self.assertEqual(bytes(s2), s2_byte)
+
+            self.assertEqual(SampleClient.from_bytes(s1_byte), s1)
+            self.assertEqual(SampleServer.from_bytes(s2_byte), s2)
+
 
     unittest.main()
