@@ -69,3 +69,6 @@ if __name__ == '__main__':
     print(h)
     from disp import hexdump
     print(hexdump(bytes(h)))
+
+    h2 = Handshake.from_bytes(bytes(h))
+    print(h2)

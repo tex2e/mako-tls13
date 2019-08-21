@@ -201,7 +201,12 @@ class Enum(Type, BuildinEnum):
 
     @classmethod
     def from_fs(cls, fs):
-        return cls(cls.elem_t(fs.read(cls.elem_t.size)))
+        elem_t = cls.get_type()
+        return cls(elem_t.from_fs(fs))
+
+    @classmethod
+    def get_type(cls):
+        return cls.elem_t.value
 
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ class TLSPlaintext(StructMeta):
         Member(ContentType, 'type'),
         Member(ProtocolVersion, 'legacy_record_version'),
         Member(Uint16, 'length'),
-        Member(Select(switch='type', cases={
+        Member(Select('type', cases={
             ContentType.handshake: Handshake,
         }), 'fragment'),
     ])
