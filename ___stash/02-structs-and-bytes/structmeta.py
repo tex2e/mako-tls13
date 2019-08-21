@@ -42,19 +42,20 @@ class StructMeta(Type):
             elem_t = member.get_type()
             # 型がSelectのときは、既に格納した値(typeなど)から型を決定する
             if isinstance(elem_t, Select):
-                # ドットの数は現在のインスタンスから親インスタンスに上がっていく回数を表す
-                # Example)
-                #   .msg_type または msg_type : 現在の構造体の変数 msg_type を参照する
-                #   ..msg_type : 親の構造体の変数 msg_type を参照する
-                count = len(re.match(r'^\.*', elem_t.switch)[0])
-                parent_nest = count - 1 if count > 0 else 0
-                # ドットの数の分だけ親をさかのぼる
+
+                # 条件が「クラス名.プロパティ名」のとき
+                if re.match(r'^[^.]+\.[^.]+$', elem_t.switch):
+                    class_name, prop_name = elem_t.switch.split('.', maxsplit=1)
+                # 条件が「プロパティ名」のみ
+                else:
+                    class_name, prop_name = instance.__class__.__name__, elem_t.switch
+                # 親のクラス名がclass_nameと一致するまで親をさかのぼる
                 tmp = instance
-                for i in range(parent_nest):
+                while tmp is not None:
+                    if tmp.__class__.__name__ == class_name: break
                     tmp = tmp.parent
                 # 既に格納した値の取得
-                member_name = elem_t.switch.lstrip('.')
-                value = getattr(tmp, member_name)
+                value = getattr(tmp, prop_name)
                 # 既に格納した値から使用する型を決定する
                 elem_t = elem_t.select_type(value)
 
@@ -97,8 +98,10 @@ class StructMeta(Type):
     def __eq__(self, other):
         self_members  = self.get_struct().get_members()
         other_members = other.get_struct().get_members()
+        # 要素数の比較
         if len(self_members) != len(other_members):
             return False
+        # 各要素の比較
         for self_member, other_member in zip(self_members, other_members):
             self_member_name  = self_member.get_name()
             other_member_name = other_member.get_name()
@@ -324,7 +327,7 @@ if __name__ == '__main__':
 
             class Sample1(StructMeta):
                 struct = Members([
-                    Member(Select('..parent_field', cases={
+                    Member(Select('Sample2.parent_field', cases={
                         Uint8(0xaa): Uint8,
                         Uint8(0xbb): Uint16,
                     }), 'child_field')
@@ -356,7 +359,7 @@ if __name__ == '__main__':
 
             class Sample1(StructMeta):
                 struct = Members([
-                    Member(Select('...parent_fieldA', cases={
+                    Member(Select('Sample3.parent_fieldA', cases={
                         Uint8(0xaa): Uint8,
                         Uint8(0xbb): Uint16,
                     }), 'child_field')
