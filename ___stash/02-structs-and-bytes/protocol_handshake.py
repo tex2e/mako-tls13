@@ -40,35 +40,38 @@ class Handshake(StructMeta):
 
 if __name__ == '__main__':
 
-    ProtocolVersion = Uint16
-    Random = Opaque(32)
-    OpaqueUint8 = Opaque(size_t=Uint8)
-    CipherSuite = Uint16
-    CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-    Extensions = List(size_t=Uint16, elem_t=Opaque(0))
+    import unittest
 
-    ch = ClientHello(
-        random=Random(bytes.fromhex(
-            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
-        legacy_session_id=OpaqueUint8(bytes.fromhex(
-            'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
-        cipher_suites=CipherSuites([
-            CipherSuite(0x1302), CipherSuite(0x1303),
-            CipherSuite(0x1301), CipherSuite(0x00ff)]),
-        legacy_compression_methods=OpaqueUint8(b'\x00'),
-        extensions=Extensions([]),
-    )
-    ch_byte = bytes(ch)
+    class TestUint(unittest.TestCase):
 
-    h = Handshake(
-        msg_type=HandshakeType.client_hello,
-        length=Uint24(len(ch_byte)),
-        msg=ch,
-    )
+        def test_handshake(self):
 
-    print(h)
-    from disp import hexdump
-    print(hexdump(bytes(h)))
+            Random = Opaque(32)
+            OpaqueUint8 = Opaque(size_t=Uint8)
+            CipherSuite = Uint16
+            CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
+            Extensions = List(size_t=Uint16, elem_t=Opaque(0))
 
-    h2 = Handshake.from_bytes(bytes(h))
-    print(h2)
+            ch = ClientHello(
+                random=Random(bytes.fromhex(
+                    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
+                legacy_session_id=OpaqueUint8(bytes.fromhex(
+                    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
+                cipher_suites=CipherSuites([
+                    CipherSuite(0x1302), CipherSuite(0x1303),
+                    CipherSuite(0x1301), CipherSuite(0x00ff)]),
+                legacy_compression_methods=OpaqueUint8(b'\x00'),
+                extensions=Extensions([]),
+            )
+            ch_byte = bytes(ch)
+
+            h = Handshake(
+                msg_type=HandshakeType.client_hello,
+                length=Uint24(len(ch_byte)),
+                msg=ch,
+            )
+
+            h2 = Handshake.from_bytes(bytes(h))
+            self.assertEqual(h2, h)
+
+    unittest.main()

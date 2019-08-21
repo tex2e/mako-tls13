@@ -178,7 +178,6 @@ def List(size_t, elem_t):
                 return List(array)
 
         def __eq__(self, other):
-            assert isinstance(other, List)
             if len(self.array) != len(other.array):
                 return False
             for self_elem, other_elem in zip(self.array, other.array):
