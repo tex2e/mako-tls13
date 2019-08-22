@@ -43,11 +43,11 @@ class StructMeta(Type):
             # 型がSelectのときは、既に格納した値(typeなど)から型を決定する
             if isinstance(elem_t, Select):
 
-                # 条件が「クラス名.プロパティ名」のとき
                 if re.match(r'^[^.]+\.[^.]+$', elem_t.switch):
+                    # 条件が「クラス名.プロパティ名」のとき
                     class_name, prop_name = elem_t.switch.split('.', maxsplit=1)
-                # 条件が「プロパティ名」のみ
                 else:
+                    # 条件が「プロパティ名」のみ
                     class_name, prop_name = instance.__class__.__name__, elem_t.switch
                 # 親のクラス名がclass_nameと一致するまで親をさかのぼる
                 tmp = instance
@@ -76,11 +76,11 @@ class StructMeta(Type):
 
     def __repr__(self):
         # 出力は次のようにする
-        # 1. 各要素を表示するときは次のようにし、出力幅が80を超えないようにする
+        # 1. 各要素を表示するときはプラス(+)記号を加えて、出力幅が70を超えないようにする
         #     + 要素名: 型(値)
-        # 2. 要素もStructMetaのときは、次のようにする。
+        # 2. 要素もStructMetaのときは、内部要素をスペース2つ分だけインデントする
         #     + 要素名: StructMeta名:
-        #       + 要素: 型(値)...
+        #       + 要素: 型(値)
         title = "%s:\n" % self.__class__.__name__
         elems = []
         for member in self.get_struct().get_members():
@@ -88,11 +88,12 @@ class StructMeta(Type):
             elem = getattr(self, name)
             content = repr(elem)
             output = '%s: %s' % (name, content)
-            # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
+
             if isinstance(elem, StructMeta):
+                # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
                 output = textwrap.indent(output, prefix="  ").strip()
-            # その他の要素は出力が1行になるので、コンソールの幅を超えないように折返し出力させる
             else:
+                # その他の要素は出力が1行なので、コンソールの幅を超えないように折返し出力させる
                 output = '\n  '.join(textwrap.wrap(output, width=70))
             elems.append('+ ' + output)
         return title + "\n".join(elems)
@@ -121,9 +122,12 @@ class StructMeta(Type):
 # 構造体の要素を表すクラス
 class Member:
     def __init__(self, type, name, default=None):
-        self.type = type # class
-        self.name = name # str
-        self.default = default # default value
+        assert isinstance(type, Select) or issubclass(type, Type)
+        assert isinstance(name, str)
+        assert (default is None) or callable(default) or isinstance(default, Type)
+        self.type = type
+        self.name = name
+        self.default = default
 
     def get_type(self):
         return self.type
@@ -136,11 +140,12 @@ class Member:
     # ラムダ関数を評価する際は、キーワード引数から導出するもの(例えば length など)があるので、
     # キーワード引数の辞書をラムダの引数として与える。
     def get_default(self, args_dict=None):
-        # ラムダのときは、ラムダを評価した値をデフォルト値として返す。
         if callable(self.default):
+            # ラムダのときは、ラムダを評価した値をデフォルト値として返す。
             return self.default(args_dict)
-        # それ以外のときは、設定したデフォルト値を返す。
-        return self.default
+        else:
+            # それ以外のときは、設定したデフォルト値を返す。
+            return self.default
 
 # 構造体の要素の集合を表すクラス
 class Members:
@@ -174,7 +179,9 @@ class Select:
         assert isinstance(cases, dict)
         self.switch = switch
         self.cases = cases
-        # check if the `switch` syntax is valid.
+        # 引数 switch の構文が正しいか確認する。
+        #   自身のプロパティを参照する場合 : "プロパティ名"
+        #   親のプロパティを参照する場合 : "親クラス名.プロパティ名"
         if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z_]+)?$', self.switch):
             raise Exception('Select(%s) is invalid syntax!' % self.switch)
 
