@@ -2,6 +2,8 @@
 from type import Uint8, Uint16, Opaque, List, Enum
 from structmeta import StructMeta, Members, Member, Select
 
+from protocol_extensions import Extension
+
 # ------------------------------------------------------------------------------
 # Key Exchange Layer
 

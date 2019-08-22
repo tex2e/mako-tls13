@@ -2,7 +2,7 @@
 from type import Uint8, Uint16, Opaque, List, Enum
 from structmeta import StructMeta, Members, Member, Select
 
-from protocol_handshake import HandshakeType
+from protocol_types import HandshakeType
 
 class ProtocolVersion(Enum):
     elem_t = Uint16
