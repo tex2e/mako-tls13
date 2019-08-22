@@ -12,7 +12,7 @@ Random = Opaque(32)
 OpaqueUint8 = Opaque(size_t=Uint8)
 CipherSuite = Uint16
 CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-Extensions = List(size_t=Uint16, elem_t=Opaque(0))
+Extensions = List(size_t=Uint16, elem_t=Extension)
 
 class ClientHello(StructMeta):
     struct = Members([
@@ -64,5 +64,31 @@ if __name__ == '__main__':
 
             self.assertEqual(bytes(ch), expected)
             self.assertEqual(ClientHello.from_bytes(bytes(ch)), ch)
+
+        def test_clienthello_has_extensions(self):
+
+            from protocol_extensions import ExtensionType
+            from protocol_ext_version import ProtocolVersion, SupportedVersions
+
+            ch = ClientHello(
+                random=Random(bytes.fromhex(
+                    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
+                legacy_session_id=OpaqueUint8(bytes.fromhex(
+                    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
+                cipher_suites=CipherSuites([
+                    CipherSuite(0x1302), CipherSuite(0x1303),
+                    CipherSuite(0x1301), CipherSuite(0x00ff)]),
+                legacy_compression_methods=OpaqueUint8(b'\x00'),
+                extensions=Extensions([
+                    Extension(
+                        extension_type=ExtensionType.supported_versions,
+                        extension_data=SupportedVersions(
+                            versions=[ProtocolVersion.TLS13]
+                        )
+                    ),
+                ]),
+            )
+
+            print(ch)
 
     unittest.main()
