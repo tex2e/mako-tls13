@@ -23,7 +23,7 @@ class TLSPlaintext(StructMeta):
 if __name__ == '__main__':
 
     from type import Uint24
-    from protocol_keyexchange import ClientHello
+    from protocol_hello import ClientHello
     from protocol_handshake import Handshake, HandshakeType
 
     import unittest

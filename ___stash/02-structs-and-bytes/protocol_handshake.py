@@ -3,7 +3,7 @@ from type import Uint8, Uint16, Uint24, Opaque, List, Enum
 from structmeta import StructMeta, Members, Member, Select
 
 from protocol_types import HandshakeType
-from protocol_keyexchange import ClientHello
+from protocol_hello import ClientHello
 
 # ------------------------------------------------------------------------------
 # Handshake Layer
