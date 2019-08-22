@@ -21,7 +21,12 @@ from disp import hexdump
 
 class StructMeta(Type):
     def __init__(self, lazy_eval=False, **kwargs):
+        self.parent = None
         self.__class__.struct.set_props(self, lazy_eval=lazy_eval, **kwargs)
+
+    # 全てのStructMetaは親インスタンスを参照できるようにする。
+    def set_parent(self, parent):
+        self.parent = parent
 
     def __bytes__(self):
         f = io.BytesIO()
@@ -37,7 +42,7 @@ class StructMeta(Type):
     def from_fs(cls, fs, parent=None):
         # デフォルト値などを導出せずにインスタンス化する
         instance = cls(lazy_eval=True)
-        setattr(instance, 'parent', parent) # 子が親インスタンスを参照できるようにする
+        instance.set_parent(parent) # 子が親インスタンスを参照できるようにする
 
         for member in cls.get_struct().get_members():
             name = member.get_name()
@@ -79,7 +84,7 @@ class StructMeta(Type):
             def is_StructMeta(elem):
                 return isinstance(elem, StructMeta)
             def is_List_of_StructMeta(elem):
-                return (hasattr(elem, 'array') and
+                return (isinstance(elem, ListMeta) and
                         issubclass(elem.__class__.elem_t, StructMeta))
 
             if is_StructMeta(elem) or is_List_of_StructMeta(elem):
@@ -99,12 +104,10 @@ class StructMeta(Type):
             return False
         # 各要素の比較
         for self_member, other_member in zip(self_members, other_members):
-            self_member_name  = self_member.get_name()
-            other_member_name = other_member.get_name()
-            if self_member_name != other_member_name:
+            if self_member.get_name() != other_member.get_name():
                 return False
-            self_elem  = getattr(self, self_member_name)
-            other_elem = getattr(other, other_member_name)
+            self_elem  = getattr(self, self_member.get_name())
+            other_elem = getattr(other, other_member.get_name())
             if self_elem != other_elem:
                 return False
         return True
@@ -162,6 +165,11 @@ class Members:
                 value = kwargs.get(name)
             else:
                 value = member.get_default(kwargs)
+
+            # StructMetaとListは親インスタンスを参照できるようにする
+            if isinstance(value, (StructMeta, ListMeta)):
+                value.set_parent(this)
+
             setattr(this, name, value)
         return self
 
@@ -439,23 +447,62 @@ if __name__ == '__main__':
                 a = Sample2.from_bytes(bytes(s1_byte))
 
         def test_structmeta_invalid_switch(self):
-
             with self.assertRaisesRegex(Exception, 'Select') as cm:
-                class Sample1(StructMeta):
-                    struct = Members([
-                        Member(Select('.parent_field', cases={
-                            Uint8(0xaa): Uint8,
-                            Uint8(0xbb): Uint16,
-                        }), 'child_field')
-                    ])
-
+                Select('.field', cases={})
             with self.assertRaisesRegex(Exception, 'Select') as cm:
-                class Sample2(StructMeta):
-                    struct = Members([
-                        Member(Select('Handshake#parent_field', cases={
-                            Uint8(0xaa): Uint8,
-                            Uint8(0xbb): Uint16,
-                        }), 'child_field')
-                    ])
+                Select('Handshake#field', cases={})
+            with self.assertRaisesRegex(Exception, 'Select') as cm:
+                Select('Handshake.field.fieldA', cases={})
+            with self.assertRaisesRegex(Exception, 'Select') as cm:
+                Select('Handshake.field.fieldA', cases={})
+
+        def test_structmeta_has_parent_ref(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Select('Sample3.parent_fieldA', cases={
+                        Uint8(0xaa): Uint8,
+                        Uint8(0xbb): Uint16,
+                    }), 'child_field')
+                ])
+
+            class Sample2(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_fieldB'),
+                    Member(Sample1, 'fragment')
+                ])
+
+            Sample2s = List(size_t=Uint8, elem_t=Sample2)
+
+            class Sample3(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_fieldA'),
+                    Member(Sample2s, 'fragment')
+                ])
+
+            s = Sample3(
+                parent_fieldA=Uint8(0xbb),
+                fragment=Sample2s([
+                    Sample2(
+                        parent_fieldB=Uint8(0x12),
+                        fragment=Sample1(
+                            child_field=Uint16(0x0101))
+                    )
+                ])
+            )
+
+            # コンストラクタで構造体を構築した場合
+            target = s.fragment.get_array()[0].fragment # 最下の子インスタンス
+            self.assertTrue(isinstance(target, Sample1))
+            self.assertTrue(isinstance(target.parent, Sample2))
+            self.assertTrue(isinstance(target.parent.parent, Sample3))
+
+            # バイト列から構造体を構築した場合
+            s2 = Sample3.from_bytes(bytes(s))
+            target = s.fragment.get_array()[0].fragment # 最下の子インスタンス
+            self.assertTrue(isinstance(target, Sample1))
+            self.assertTrue(isinstance(target.parent, Sample2))
+            self.assertTrue(isinstance(target.parent.parent, Sample3))
+
 
     unittest.main()

@@ -34,7 +34,7 @@ class Uint(Type):
         return self.value.to_bytes(self.__class__.size, byteorder='big')
 
     @classmethod
-    def from_fs(cls, fs):
+    def from_fs(cls, fs, parent=None):
         data = fs.read(cls.size)
         return cls(int.from_bytes(data, byteorder='big'))
 
@@ -154,6 +154,15 @@ class ListMeta(Type):
 # 配列の構造を表すためのクラス
 def List(size_t, elem_t):
 
+    # List ではスコープが異なる(グローバルとローカル)と、
+    # 組み込み関数 issubclass が期待通りに動かない場合があるので、
+    # 子クラスの基底クラス名の一覧の中に、親クラス名が存在すれば True を返す関数を作成した。
+    # この関数は List クラス内で issubclass の代わりに利用する。
+    def my_issubclass(child, parent):
+        if not hasattr(child, '__bases__'):
+            return False
+        return parent.__name__ in map(lambda x: x.__name__, child.__bases__)
+
     class List(ListMeta):
         size_t = None # リストの長さを表す部分の型
         elem_t = None # リストの要素の型
@@ -161,9 +170,22 @@ def List(size_t, elem_t):
         def __init__(self, array):
             self.array = array
 
+        def get_array(self):
+            return self.array
+
+        # 構造体の構築時には、Listは親インスタンスを参照できるようにする。
+        # そして要素がStructMetaであれば、各要素の.set_parent()に親インスタンスを渡す。
+        def set_parent(self, parent):
+            self.parent = parent
+
+            from structmeta import StructMeta
+            if my_issubclass(List.elem_t, StructMeta):
+                for elem in self.get_array():
+                    elem.set_parent(self.parent)
+
         def __bytes__(self):
             size_t = List.size_t
-            content = b''.join(bytes(elem) for elem in self.array)
+            content = b''.join(bytes(elem) for elem in self.get_array())
             content_len = len(content)
             return bytes(size_t(content_len)) + content
 
@@ -175,15 +197,13 @@ def List(size_t, elem_t):
             list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
             elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
-            has_StructMeta = issubclass(elem_t, StructMeta)
+            has_StructMeta = my_issubclass(elem_t, StructMeta)
+            params = {'parent': parent} if has_StructMeta else {}
 
             if elem_size: # 要素が固定長の場合
                 array = []
                 for i in range(list_size // elem_size): # 要素数
-                    if has_StructMeta:
-                        elem = elem_t.from_fs(fs, parent)
-                    else:
-                        elem = elem_t.from_fs(fs)
+                    elem = elem_t.from_fs(fs, **params)
                     array.append(elem)
                 return List(array)
 
@@ -192,34 +212,32 @@ def List(size_t, elem_t):
                 # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
                 startpos = fs.tell()
                 while (fs.tell() - startpos) < list_size:
-                    if has_StructMeta:
-                        elem = elem_t.from_fs(fs, parent)
-                    else:
-                        elem = elem_t.from_fs(fs)
+                    elem = elem_t.from_fs(fs, **params)
                     array.append(elem)
                 return List(array)
 
         def __eq__(self, other):
-            if len(self.array) != len(other.array):
+            if len(self.get_array()) != len(other.get_array()):
                 return False
-            for self_elem, other_elem in zip(self.array, other.array):
+            for self_elem, other_elem in zip(self.get_array(), other.get_array()):
                 if self_elem != other_elem:
                     return False
             return True
 
         def __repr__(self):
             from structmeta import StructMeta
-            if issubclass(List.elem_t, StructMeta):
+
+            if my_issubclass(List.elem_t, StructMeta):
                 # リストの要素がStructMetaのときは、各要素を複数行で表示する
                 output = ''
-                for elem in self.array:
+                for elem in self.get_array():
                     content = textwrap.indent(repr(elem), prefix="  ").strip()
-                    output += '+ %s\n' % (content)
+                    output += '+ %s\n' % content
                 return 'List<%s>:\n%s' % (self.__class__.size_t.__name__, output)
             else:
                 # それ以外のときは配列の中身を一行で表示する
                 return 'List<%s>%s' % \
-                    (self.__class__.size_t.__name__, repr(self.array))
+                    (self.__class__.size_t.__name__, repr(self.get_array()))
 
     List.size_t = size_t
     List.elem_t = elem_t
