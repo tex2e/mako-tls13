@@ -54,6 +54,8 @@ class StructMeta(Type):
                 while tmp is not None:
                     if tmp.__class__.__name__ == class_name: break
                     tmp = tmp.parent
+                if tmp is None:
+                    raise Exception('Not found "%s" class from ancestors.' % class_name)
                 # 既に格納した値の取得
                 value = getattr(tmp, prop_name)
                 # 既に格納した値から使用する型を決定する
@@ -172,9 +174,15 @@ class Select:
         assert isinstance(cases, dict)
         self.switch = switch
         self.cases = cases
+        # check if the `switch` syntax is valid.
+        if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z_]+)?$', self.switch):
+            raise Exception('Select(%s) is invalid syntax!' % self.switch)
 
     def select_type(self, switch_value):
-        return self.cases.get(switch_value)
+        ret = self.cases.get(switch_value)
+        if ret is None:
+            raise Exception('Select(%s) cannot map to class!' % switch_value)
+        return ret
 
 
 if __name__ == '__main__':
@@ -388,5 +396,45 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), s_byte)
             self.assertEqual(Sample3.from_bytes(bytes(s)), s)
 
+        def test_structmeta_unknown_parent(self):
+
+            class Sample1(StructMeta):
+                struct = Members([
+                    Member(Select('UnknownClass.parent_field', cases={
+                        Uint8(0xaa): Uint8,
+                        Uint8(0xbb): Uint16,
+                    }), 'child_field')
+                ])
+
+            class Sample2(StructMeta):
+                struct = Members([
+                    Member(Uint8, 'parent_field'),
+                    Member(Sample1, 'fragment')
+                ])
+
+            s1_byte = bytes.fromhex('aa ff')
+
+            with self.assertRaisesRegex(Exception, 'UnknownClass') as cm:
+                a = Sample2.from_bytes(bytes(s1_byte))
+
+        def test_structmeta_invalid_switch(self):
+
+            with self.assertRaisesRegex(Exception, 'Select') as cm:
+                class Sample1(StructMeta):
+                    struct = Members([
+                        Member(Select('.parent_field', cases={
+                            Uint8(0xaa): Uint8,
+                            Uint8(0xbb): Uint16,
+                        }), 'child_field')
+                    ])
+
+            with self.assertRaisesRegex(Exception, 'Select') as cm:
+                class Sample2(StructMeta):
+                    struct = Members([
+                        Member(Select('Handshake#parent_field', cases={
+                            Uint8(0xaa): Uint8,
+                            Uint8(0xbb): Uint16,
+                        }), 'child_field')
+                    ])
 
     unittest.main()
