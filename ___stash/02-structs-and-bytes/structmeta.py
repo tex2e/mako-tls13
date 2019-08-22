@@ -40,26 +40,10 @@ class StructMeta(Type):
         for member in cls.get_struct().get_members():
             name = member.get_name()
             elem_t = member.get_type()
-            # 型がSelectのときは、既に格納した値(typeなど)から型を決定する
-            if isinstance(elem_t, Select):
 
-                if re.match(r'^[^.]+\.[^.]+$', elem_t.switch):
-                    # 条件が「クラス名.プロパティ名」のとき
-                    class_name, prop_name = elem_t.switch.split('.', maxsplit=1)
-                else:
-                    # 条件が「プロパティ名」のみ
-                    class_name, prop_name = instance.__class__.__name__, elem_t.switch
-                # 親のクラス名がclass_nameと一致するまで親をさかのぼる
-                tmp = instance
-                while tmp is not None:
-                    if tmp.__class__.__name__ == class_name: break
-                    tmp = tmp.parent
-                if tmp is None:
-                    raise Exception('Not found "%s" class from ancestors.' % class_name)
-                # 既に格納した値の取得
-                value = getattr(tmp, prop_name)
-                # 既に格納した値から使用する型を決定する
-                elem_t = elem_t.select_type(value)
+            if isinstance(elem_t, Select):
+                # 型がSelectのときは、既に格納した値から型を決定する
+                elem_t = elem_t.select_type_by_switch(instance)
 
             # バイト列から構造体への変換
             if isinstance(elem_t, type) and issubclass(elem_t, StructMeta):
@@ -135,7 +119,7 @@ class Member:
     def get_name(self):
         return self.name
 
-    # キーワード引数で与えられなかった時に呼び出される。
+    # StructMetaクラスのインスタンス初期化時にキーワード引数で与えられなかった時に呼び出される。
     # 普通は .default の値を返すが、.default がラムダ関数であれば、評価した値を返す。
     # ラムダ関数を評価する際は、キーワード引数から導出するもの(例えば length など)があるので、
     # キーワード引数の辞書をラムダの引数として与える。
@@ -172,7 +156,9 @@ class Members:
             setattr(this, name, value)
         return self
 
-# 状況に応じて型を選択するためのクラス
+# 状況に応じて型を選択するためのクラス。
+# 例えば、Handshake.msg_type が client_hello と server_hello で、
+# 自身や子供の構造体フィールドの型が変化する場合に使用する。
 class Select:
     def __init__(self, switch, cases):
         assert isinstance(switch, str)
@@ -185,10 +171,28 @@ class Select:
         if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z_]+)?$', self.switch):
             raise Exception('Select(%s) is invalid syntax!' % self.switch)
 
-    def select_type(self, switch_value):
-        ret = self.cases.get(switch_value)
+    # フィールド .switch の内容を元に、構築中のインスタンスからプロパティを検索し、
+    # プロパティの値から導出した型を返す。
+    def select_type_by_switch(self, instance):
+        if re.match(r'^[^.]+\.[^.]+$', self.switch):
+            # 条件が「クラス名.プロパティ名」のとき
+            class_name, prop_name = self.switch.split('.', maxsplit=1)
+        else:
+            # 条件が「プロパティ名」のみ
+            class_name, prop_name = instance.__class__.__name__, self.switch
+        # インスタンスのクラス名がclass_nameと一致するまで親をさかのぼる
+        tmp = instance
+        while tmp is not None:
+            if tmp.__class__.__name__ == class_name: break
+            tmp = tmp.parent
+        if tmp is None:
+            raise Exception('Not found "%s" class from ancestors.' % class_name)
+        # 既に格納した値の取得
+        value = getattr(tmp, prop_name)
+        # 既に格納した値から使用する型を決定する
+        ret = self.cases.get(value)
         if ret is None:
-            raise Exception('Select(%s) cannot map to class!' % switch_value)
+            raise Exception('Select(%s) cannot map to class!' % value)
         return ret
 
 
