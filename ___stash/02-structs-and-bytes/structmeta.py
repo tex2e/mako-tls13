@@ -28,6 +28,8 @@ class StructMeta(Type):
         for member in self.get_struct().get_members():
             name = member.get_name()
             elem = getattr(self, name)
+            if elem is None:
+                raise Exception('%s.%s is None!' % (self.__class__.__name__, name))
             f.write(bytes(elem))
         return f.getvalue()
 

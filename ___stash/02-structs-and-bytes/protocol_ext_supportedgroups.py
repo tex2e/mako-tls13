@@ -31,6 +31,8 @@ class NamedGroup(Enum):
     # ecdhe_private_use = Uint16(0xFE00)..Uint16(0xFEFF)
     # obsolete_RESERVED = Uint16(0xFF01)..Uint16(0xFF02)
 
+NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
+
 class NamedGroupList(StructMeta):
     struct = Members([
         Member(List(size_t=Uint16, elem_t=NamedGroup), 'named_group_list'),
@@ -44,7 +46,6 @@ if __name__ == '__main__':
     class TestUnit(unittest.TestCase):
 
         def test_namedgrouplist(self):
-            NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 
             ngl = NamedGroupList(named_group_list=NamedGroups([
                 NamedGroup.x25519, NamedGroup.secp256r1,

@@ -2,7 +2,7 @@
 from type import Uint8, Uint16, Opaque, List, Enum
 from structmeta import StructMeta, Members, Member, Select
 
-from protocol_extensions import Extension
+from protocol_extensions import Extension, Extensions
 
 # ------------------------------------------------------------------------------
 # Key Exchange Layer
@@ -12,7 +12,6 @@ Random = Opaque(32)
 OpaqueUint8 = Opaque(size_t=Uint8)
 CipherSuite = Uint16
 CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-Extensions = List(size_t=Uint16, elem_t=Extension)
 
 class ClientHello(StructMeta):
     struct = Members([
@@ -43,10 +42,8 @@ if __name__ == '__main__':
         def test_clienthello(self):
 
             ch = ClientHello(
-                random=Random(bytes.fromhex(
-                    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
-                legacy_session_id=OpaqueUint8(bytes.fromhex(
-                    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
+                random=Random(bytes.fromhex('AA' * 32)),
+                legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
                 cipher_suites=CipherSuites([
                     CipherSuite(0x1302), CipherSuite(0x1303),
                     CipherSuite(0x1301), CipherSuite(0x00ff)]),
@@ -68,15 +65,11 @@ if __name__ == '__main__':
         def test_clienthello_has_extensions(self):
 
             from protocol_extensions import ExtensionType
-            from protocol_ext_supportedgroups import NamedGroup, NamedGroupList
-
-            NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
+            from protocol_ext_supportedgroups import NamedGroupList, NamedGroups, NamedGroup
 
             ch = ClientHello(
-                random=Random(bytes.fromhex(
-                    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')),
-                legacy_session_id=OpaqueUint8(bytes.fromhex(
-                    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')),
+                random=Random(bytes.fromhex('AA' * 32)),
+                legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
                 cipher_suites=CipherSuites([
                     CipherSuite(0x1302), CipherSuite(0x1303),
                     CipherSuite(0x1301), CipherSuite(0x00ff)]),

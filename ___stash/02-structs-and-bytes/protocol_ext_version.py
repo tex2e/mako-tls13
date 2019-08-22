@@ -13,6 +13,8 @@ class ProtocolVersion(Enum):
     TLS12 = Uint16(0x0303)
     TLS13 = Uint16(0x0304)
 
+ProtocolVersions = List(size_t=Uint8, elem_t=ProtocolVersion)
+
 class SupportedVersions(StructMeta):
     struct = Members([
         Member(Select('Handshake.msg_type', cases={
@@ -23,8 +25,6 @@ class SupportedVersions(StructMeta):
 
 
 if __name__ == '__main__':
-
-    ProtocolVersions = List(size_t=Uint8, elem_t=ProtocolVersion)
 
     from protocol_handshake import Handshake
 

@@ -44,6 +44,9 @@ class Extension(StructMeta):
         }), 'extension_data'),
     ])
 
+Extensions = List(size_t=Uint16, elem_t=Extension)
+
+
 if __name__ == '__main__':
 
     from protocol_ext_supportedgroups import NamedGroup

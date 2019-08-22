@@ -23,7 +23,8 @@ class TLSPlaintext(StructMeta):
 if __name__ == '__main__':
 
     from type import Uint24
-    from protocol_hello import ClientHello
+    from protocol_hello import \
+        ClientHello, Random, OpaqueUint8, CipherSuites, CipherSuite, Extensions
     from protocol_handshake import Handshake, HandshakeType
 
     import unittest
@@ -31,12 +32,6 @@ if __name__ == '__main__':
     class TestUint(unittest.TestCase):
 
         def test_recordlayer(self):
-
-            Random = Opaque(32)
-            OpaqueUint8 = Opaque(size_t=Uint8)
-            CipherSuite = Uint16
-            CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
-            Extensions = List(size_t=Uint16, elem_t=Opaque(0))
 
             ch = ClientHello(
                 random=Random(bytes.fromhex(
