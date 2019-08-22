@@ -1,6 +1,7 @@
 
 import struct # バイト列の解釈
 import io # バイトストリーム操作
+import textwrap # テキストの折り返しと詰め込み
 from enum import Enum as BuildinEnum
 
 # 全ての型が継承するクラス
@@ -193,7 +194,18 @@ def List(size_t, elem_t):
             return True
 
         def __repr__(self):
-            return 'List<%s>%s' % (self.__class__.size_t.__name__, repr(self.array))
+            from structmeta import StructMeta
+            if issubclass(List.elem_t, StructMeta):
+                # リストの要素がStructMetaのときは、各要素を複数行で表示する
+                output = ''
+                for elem in self.array:
+                    content = textwrap.indent(repr(elem), prefix="  ").strip()
+                    output += '+ %s\n' % (content)
+                return 'List<%s>:\n%s' % (self.__class__.size_t.__name__, output)
+            else:
+                # それ以外のときは配列の中身を一行で表示する
+                return 'List<%s>%s' % \
+                    (self.__class__.size_t.__name__, repr(self.array))
 
     List.size_t = size_t
     List.elem_t = elem_t

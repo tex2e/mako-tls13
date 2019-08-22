@@ -2,7 +2,7 @@
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
-from type import Type
+from type import Type, List
 from disp import hexdump
 
 # TLSメッセージの構造体を表すためのクラス群
@@ -73,7 +73,13 @@ class StructMeta(Type):
             content = repr(elem)
             output = '%s: %s' % (name, content)
 
-            if isinstance(elem, StructMeta):
+            def is_StructMeta(elem):
+                return isinstance(elem, StructMeta)
+            def is_List_of_StructMeta(elem):
+                return (hasattr(elem, 'array') and
+                        issubclass(elem.__class__.elem_t, StructMeta))
+
+            if is_StructMeta(elem) or is_List_of_StructMeta(elem):
                 # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
                 output = textwrap.indent(output, prefix="  ").strip()
             else:
@@ -186,7 +192,8 @@ class Select:
             if tmp.__class__.__name__ == class_name: break
             tmp = tmp.parent
         if tmp is None:
-            raise Exception('Not found "%s" class from ancestors.' % class_name)
+            raise Exception('Not found %s class in ancestors from %s!' % \
+                (class_name, instance.__class__.__name__))
         # 既に格納した値の取得
         value = getattr(tmp, prop_name)
         # 既に格納した値から使用する型を決定する

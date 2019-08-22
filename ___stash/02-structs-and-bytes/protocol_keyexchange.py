@@ -68,7 +68,9 @@ if __name__ == '__main__':
         def test_clienthello_has_extensions(self):
 
             from protocol_extensions import ExtensionType
-            from protocol_ext_version import ProtocolVersion, SupportedVersions
+            from protocol_ext_supportedgroups import NamedGroup, NamedGroupList
+
+            NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 
             ch = ClientHello(
                 random=Random(bytes.fromhex(
@@ -81,14 +83,24 @@ if __name__ == '__main__':
                 legacy_compression_methods=OpaqueUint8(b'\x00'),
                 extensions=Extensions([
                     Extension(
-                        extension_type=ExtensionType.supported_versions,
-                        extension_data=SupportedVersions(
-                            versions=[ProtocolVersion.TLS13]
+                        extension_type=ExtensionType.supported_groups,
+                        extension_data=NamedGroupList(
+                            named_group_list=NamedGroups([
+                                NamedGroup.x25519, NamedGroup.secp256r1,
+                            ])
+                        )
+                    ),
+                    Extension(
+                        extension_type=ExtensionType.supported_groups,
+                        extension_data=NamedGroupList(
+                            named_group_list=NamedGroups([
+                                NamedGroup.x25519, NamedGroup.secp256r1,
+                            ])
                         )
                     ),
                 ]),
             )
 
-            print(ch)
+            self.assertEqual(ClientHello.from_bytes(bytes(ch)), ch)
 
     unittest.main()
