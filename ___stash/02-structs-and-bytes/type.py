@@ -70,6 +70,9 @@ class Uint32(Uint):
     size = 4  # unsigned int
 
 
+class OpaqueMeta(Type):
+    pass
+
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
         return OpaqueFix(size_t)
@@ -80,7 +83,7 @@ def Opaque(size_t):
 def OpaqueFix(size):
 
     # 固定長のOpaque (e.g. opaque string[16])
-    class OpaqueFix(Type):
+    class OpaqueFix(OpaqueMeta):
         size = 0
 
         def __init__(self, byte):
@@ -111,7 +114,7 @@ def OpaqueFix(size):
 def OpaqueVar(size_t):
 
     # 可変長のOpaque (e.g. opaque string<0..15>)
-    class OpaqueVar(Type):
+    class OpaqueVar(OpaqueMeta):
         size_t = Uint
 
         def __init__(self, byte):
@@ -145,10 +148,13 @@ def OpaqueVar(size_t):
     return OpaqueVar
 
 
+class ListMeta(Type):
+    pass
+
 # 配列の構造を表すためのクラス
 def List(size_t, elem_t):
 
-    class List(Type):
+    class List(ListMeta):
         size_t = None # リストの長さを表す部分の型
         elem_t = None # リストの要素の型
 
@@ -162,16 +168,23 @@ def List(size_t, elem_t):
             return bytes(size_t(content_len)) + content
 
         @classmethod
-        def from_fs(cls, fs):
+        def from_fs(cls, fs, parent=None):
+            from structmeta import StructMeta
             size_t = cls.size_t
             elem_t = cls.elem_t
             list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
             elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
+            has_StructMeta = issubclass(elem_t, StructMeta)
+
             if elem_size: # 要素が固定長の場合
                 array = []
                 for i in range(list_size // elem_size): # 要素数
-                    array.append(elem_t.from_fs(fs))
+                    if has_StructMeta:
+                        elem = elem_t.from_fs(fs, parent)
+                    else:
+                        elem = elem_t.from_fs(fs)
+                    array.append(elem)
                 return List(array)
 
             else: # 要素が可変長の場合
@@ -179,9 +192,10 @@ def List(size_t, elem_t):
                 # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
                 startpos = fs.tell()
                 while (fs.tell() - startpos) < list_size:
-                    # print('>>>', fs.tell() - startpos, list_size)
-                    elem = elem_t.from_fs(fs)
-                    # print('>>>', fs.tell() - startpos, list_size)
+                    if has_StructMeta:
+                        elem = elem_t.from_fs(fs, parent)
+                    else:
+                        elem = elem_t.from_fs(fs)
                     array.append(elem)
                 return List(array)
 

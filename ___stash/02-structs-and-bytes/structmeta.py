@@ -2,7 +2,7 @@
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
-from type import Type, List
+from type import Type, List, ListMeta
 from disp import hexdump
 
 # TLSメッセージの構造体を表すためのクラス群
@@ -48,7 +48,8 @@ class StructMeta(Type):
                 elem_t = elem_t.select_type_by_switch(instance)
 
             # バイト列から構造体への変換
-            if isinstance(elem_t, type) and issubclass(elem_t, StructMeta):
+            if issubclass(elem_t, StructMeta) or issubclass(elem_t, ListMeta):
+                # メタ構造体とリストのとき
                 elem = elem_t.from_fs(fs, instance)
             else:
                 elem = elem_t.from_fs(fs)

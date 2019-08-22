@@ -67,8 +67,6 @@ if __name__ == '__main__':
                     ])
                 ))
 
-            print(h)
-            print(Handshake.from_bytes(bytes(h)))
-            # TODO:
+            self.assertEqual(Handshake.from_bytes(bytes(h)), h)
 
     unittest.main()
