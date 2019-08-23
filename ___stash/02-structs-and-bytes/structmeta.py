@@ -25,16 +25,21 @@ class StructMeta(Type):
 
     def __post_init__(self):
 
+        # create_emptyメソッドで生成されたとき(全ての要素がNoneのとき)は何もしない
+        if all(not getattr(self, name) for name in self.get_struct().keys()):
+            return
+
         for name, field in self.get_struct().items():
             elem = getattr(self, name)
-
-            # デフォルト値がラムダのとき、ラムダを評価した値を格納する
-            if callable(field.default):
-                setattr(self, name, field.default(self))
 
             # 要素がStructMetaとListのときは、親インスタンスを参照できるようにする
             if isinstance(elem, (StructMeta, ListMeta)):
                 elem.set_parent(self)
+
+        # __init_attr__メソッドで要素の初期化を行う
+        if hasattr(self, '__init_attr__'):
+            if callable(self.__init_attr__):
+                self.__init_attr__()
 
     @classmethod
     def create_empty(cls):
@@ -221,8 +226,11 @@ if __name__ == '__main__':
 
             @struct
             class Sample1(StructMeta):
-                length: Uint8 = lambda self: Uint8(len(bytes(self.fragment)))
+                length: Uint8 = None
                 fragment: Opaque(Uint8) = None
+
+                def __init_attr__(self):
+                    self.length = Uint8(len(bytes(self.fragment)))
 
             s1 = Sample1(fragment=Opaque(Uint8)(b'test'))
 
@@ -430,6 +438,5 @@ if __name__ == '__main__':
             self.assertTrue(isinstance(target, Sample1))
             self.assertTrue(isinstance(target.parent, Sample2))
             self.assertTrue(isinstance(target.parent.parent, Sample3))
-
 
     unittest.main()
