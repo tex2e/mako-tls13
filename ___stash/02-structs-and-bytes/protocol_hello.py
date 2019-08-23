@@ -20,7 +20,7 @@ class ClientHello(meta.StructMeta):
     legacy_session_id: OpaqueUint8
     cipher_suites: CipherSuites
     legacy_compression_methods: OpaqueUint8
-    extensions: Extensions = Extensions([])
+    extensions: Extensions
 
 @meta.struct
 class ServerHello(meta.StructMeta):
@@ -29,7 +29,7 @@ class ServerHello(meta.StructMeta):
     legacy_session_id_echo: OpaqueUint8
     cipher_suite: CipherSuite
     legacy_compression_methods: OpaqueUint8
-    extensions: Extensions = Extensions([])
+    extensions: Extensions
 
 
 if __name__ == '__main__':
