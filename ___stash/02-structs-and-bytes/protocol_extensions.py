@@ -36,7 +36,7 @@ class ExtensionType(Enum):
 @meta.struct
 class Extension(meta.StructMeta):
     extension_type: ExtensionType
-    length: Uint16 = lambda args: Uint16(len(bytes(args.extension_data)))
+    length: Uint16 = lambda self: Uint16(len(bytes(self.extension_data)))
     extension_data: meta.Select('extension_type', cases={
         ExtensionType.supported_versions: SupportedVersions,
         ExtensionType.supported_groups: NamedGroupList
