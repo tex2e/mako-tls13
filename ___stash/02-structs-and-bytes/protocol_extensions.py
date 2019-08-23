@@ -40,7 +40,7 @@ class Extension(meta.StructMeta):
     extension_data: meta.Select('extension_type', cases={
         ExtensionType.supported_versions: SupportedVersions,
         ExtensionType.supported_groups: NamedGroupList
-    }) = None
+    })
 
 Extensions = List(size_t=Uint16, elem_t=Extension)
 

@@ -10,11 +10,11 @@ from protocol_hello import ClientHello
 
 @meta.struct
 class Handshake(meta.StructMeta):
-    msg_type: HandshakeType = None
+    msg_type: HandshakeType
     length: Uint24 = lambda self: Uint24(len(bytes(self.msg)))
     msg: meta.Select('msg_type', cases={
         HandshakeType.client_hello: ClientHello,
-    }) = None
+    })
 
 
 if __name__ == '__main__':

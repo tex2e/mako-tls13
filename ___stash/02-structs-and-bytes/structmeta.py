@@ -4,9 +4,13 @@ import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
 from type import Type, List, ListMeta
 
-from dataclasses import dataclass
+import dataclasses
 
-struct = dataclass(repr=False)
+def struct(cls):
+    for name, elem_t in cls.__annotations__.items():
+        if not hasattr(cls, name):
+            setattr(cls, name, None)
+    return dataclasses.dataclass(repr=False)(cls)
 
 # TLSメッセージの構造体を表すためのクラス群
 # 使い方：
@@ -214,7 +218,7 @@ if __name__ == '__main__':
             @struct
             class Sample1(StructMeta):
                 fieldA: Uint8 = Uint8(0x01)
-                fieldB: Uint8 = None
+                fieldB: Uint8
 
             s1 = Sample1(fieldA=Uint8(0x01), fieldB=Uint8(0x12))
             s2 = Sample1(fieldB=Uint8(0x12))
@@ -226,7 +230,7 @@ if __name__ == '__main__':
             @struct
             class Sample1(StructMeta):
                 length: Uint8 = lambda self: Uint8(len(bytes(self.fragment)))
-                fragment: Opaque(Uint8) = None
+                fragment: Opaque(Uint8)
 
             s1 = Sample1(fragment=Opaque(Uint8)(b'test'))
 

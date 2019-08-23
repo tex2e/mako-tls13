@@ -16,19 +16,19 @@ CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
 @meta.struct
 class ClientHello(meta.StructMeta):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
-    random: Random = None
-    legacy_session_id: OpaqueUint8 = None
-    cipher_suites: CipherSuites = None
-    legacy_compression_methods: OpaqueUint8 = None
+    random: Random
+    legacy_session_id: OpaqueUint8
+    cipher_suites: CipherSuites
+    legacy_compression_methods: OpaqueUint8
     extensions: Extensions = Extensions([])
 
 @meta.struct
 class ServerHello(meta.StructMeta):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
-    random: Random = None
-    legacy_session_id_echo: OpaqueUint8 = None
-    cipher_suite: CipherSuite = None
-    legacy_compression_methods: OpaqueUint8 = None
+    random: Random
+    legacy_session_id_echo: OpaqueUint8
+    cipher_suite: CipherSuite
+    legacy_compression_methods: OpaqueUint8
     extensions: Extensions = Extensions([])
 
 
