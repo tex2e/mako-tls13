@@ -1,28 +1,25 @@
 
 from type import Uint16, Opaque, List
-from structmeta import StructMeta, Members, Member
+import structmeta as meta
 
 from protocol_ext_supportedgroups import NamedGroup
 
 OpaqueUint16 = Opaque(Uint16)
 
-class KeyShareEntry(StructMeta):
-    struct = Members([
-        Member(NamedGroup, 'group'),
-        Member(OpaqueUint16, 'key_exchange')
-    ])
+@meta.struct
+class KeyShareEntry(meta.StructMeta):
+    group: NamedGroup
+    key_exchange: OpaqueUint16
 
 KeyShareEntrys = List(size_t=Uint16, elem_t=KeyShareEntry)
 
-class KeyShareClientHello(StructMeta):
-    struct = Members([
-        Member(KeyShareEntrys, 'client_shares'),
-    ])
+@meta.struct
+class KeyShareClientHello(meta.StructMeta):
+    client_shares: KeyShareEntrys
 
-class KeyShareServerHello(StructMeta):
-    struct = Members([
-        Member(KeyShareEntry, 'server_share'),
-    ])
+@meta.struct
+class KeyShareServerHello(meta.StructMeta):
+    server_share: KeyShareEntry
 
 
 if __name__ == '__main__':

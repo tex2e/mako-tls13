@@ -2,8 +2,8 @@
 # B.3.1.4.  Supported Groups Extension
 # https://tools.ietf.org/html/rfc8446#appendix-B.3.1.4
 
-from type import Uint8, Uint16, Opaque, List, Enum
-from structmeta import StructMeta, Members, Member, Select
+from type import Uint16, List, Enum
+import structmeta as meta
 
 # 鍵交換のための群
 class NamedGroup(Enum):
@@ -33,10 +33,9 @@ class NamedGroup(Enum):
 
 NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 
-class NamedGroupList(StructMeta):
-    struct = Members([
-        Member(List(size_t=Uint16, elem_t=NamedGroup), 'named_group_list'),
-    ])
+@meta.struct
+class NamedGroupList(meta.StructMeta):
+    named_group_list: NamedGroups
 
 
 if __name__ == '__main__':

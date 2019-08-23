@@ -1,6 +1,6 @@
 
-from type import Uint8, Uint16, Opaque, List, Enum
-from structmeta import StructMeta, Members, Member, Select
+from type import Uint8, Uint16, List, Enum
+import structmeta as meta
 
 from protocol_types import HandshakeType
 
@@ -15,13 +15,12 @@ class ProtocolVersion(Enum):
 
 ProtocolVersions = List(size_t=Uint8, elem_t=ProtocolVersion)
 
-class SupportedVersions(StructMeta):
-    struct = Members([
-        Member(Select('Handshake.msg_type', cases={
-            HandshakeType.client_hello: List(size_t=Uint8, elem_t=ProtocolVersion),
-            HandshakeType.server_hello: ProtocolVersion,
-        }), 'version'),
-    ])
+@meta.struct
+class SupportedVersions(meta.StructMeta):
+    version: meta.Select('Handshake.msg_type', cases={
+        HandshakeType.client_hello: ProtocolVersions,
+        HandshakeType.server_hello: ProtocolVersion,
+    })
 
 
 if __name__ == '__main__':
@@ -34,11 +33,10 @@ if __name__ == '__main__':
 
         def test_ext_supported_versions_client_hello(self):
 
-            class Handshake(StructMeta):
-                struct = Members([
-                    Member(HandshakeType, 'msg_type'),
-                    Member(SupportedVersions, 'msg'),
-                ])
+            @meta.struct
+            class Handshake(meta.StructMeta):
+                msg_type: HandshakeType
+                msg: SupportedVersions
 
             h = Handshake(
                 msg_type=HandshakeType.client_hello,
@@ -52,11 +50,10 @@ if __name__ == '__main__':
 
         def test_ext_supported_versions_server_hello(self):
 
-            class Handshake(StructMeta):
-                struct = Members([
-                    Member(HandshakeType, 'msg_type'),
-                    Member(SupportedVersions, 'msg'),
-                ])
+            @meta.struct
+            class Handshake(meta.StructMeta):
+                msg_type: HandshakeType
+                msg: SupportedVersions
 
             h = Handshake(
                 msg_type=HandshakeType.server_hello,

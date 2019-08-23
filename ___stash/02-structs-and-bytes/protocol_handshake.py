@@ -1,6 +1,6 @@
 
 from type import Uint8, Uint16, Uint24, Opaque, List, Enum
-from structmeta import StructMeta, Members, Member, Select
+import structmeta as meta
 
 from protocol_types import HandshakeType
 from protocol_hello import ClientHello
@@ -8,14 +8,13 @@ from protocol_hello import ClientHello
 # ------------------------------------------------------------------------------
 # Handshake Layer
 
-class Handshake(StructMeta):
-    struct = Members([
-        Member(HandshakeType, 'msg_type'),
-        Member(Uint24, 'length', lambda args: Uint24(len(args.get('msg')))),
-        Member(Select('msg_type', cases={
-            HandshakeType.client_hello: ClientHello,
-        }), 'msg'),
-    ])
+@meta.struct
+class Handshake(meta.StructMeta):
+    msg_type: HandshakeType = None
+    length: Uint24 = lambda args: Uint24(len(bytes(args.msg)))
+    msg: meta.Select('msg_type', cases={
+        HandshakeType.client_hello: ClientHello,
+    }) = None
 
 
 if __name__ == '__main__':

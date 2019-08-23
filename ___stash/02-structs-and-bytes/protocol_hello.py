@@ -1,6 +1,6 @@
 
-from type import Uint8, Uint16, Opaque, List, Enum
-from structmeta import StructMeta, Members, Member, Select
+from type import Uint8, Uint16, Opaque, List
+import structmeta as meta
 
 from protocol_extensions import Extension, Extensions
 
@@ -13,25 +13,23 @@ OpaqueUint8 = Opaque(size_t=Uint8)
 CipherSuite = Uint16
 CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
 
-class ClientHello(StructMeta):
-    struct = Members([
-        Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-        Member(Random, 'random'),
-        Member(OpaqueUint8, 'legacy_session_id'),
-        Member(CipherSuites, 'cipher_suites'),
-        Member(OpaqueUint8, 'legacy_compression_methods'),
-        Member(Extensions, 'extensions', Extensions([]))
-    ])
+@meta.struct
+class ClientHello(meta.StructMeta):
+    legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
+    random: Random = None
+    legacy_session_id: OpaqueUint8 = None
+    cipher_suites: CipherSuites = None
+    legacy_compression_methods: OpaqueUint8 = None
+    extensions: Extensions = Extensions([])
 
-class ServerHello(StructMeta):
-    struct = Members([
-        Member(ProtocolVersion, 'legacy_version', ProtocolVersion(0x0303)),
-        Member(Random, 'random'),
-        Member(OpaqueUint8, 'legacy_session_id_echo'),
-        Member(CipherSuite, 'cipher_suite'),
-        Member(OpaqueUint8, 'legacy_compression_methods'),
-        Member(Extensions, 'extensions', Extensions([]))
-    ])
+@meta.struct
+class ServerHello(meta.StructMeta):
+    legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
+    random: Random = None
+    legacy_session_id_echo: OpaqueUint8 = None
+    cipher_suite: CipherSuite = None
+    legacy_compression_methods: OpaqueUint8 = None
+    extensions: Extensions = Extensions([])
 
 
 if __name__ == '__main__':

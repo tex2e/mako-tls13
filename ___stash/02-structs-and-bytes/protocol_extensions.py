@@ -1,6 +1,6 @@
 
-from type import Uint8, Uint16, Opaque, List, Enum
-from structmeta import StructMeta, Members, Member, Select
+from type import Uint16, List, Enum
+import structmeta as meta
 
 from protocol_ext_version import SupportedVersions
 from protocol_ext_supportedgroups import NamedGroupList
@@ -33,16 +33,14 @@ class ExtensionType(Enum):
     signature_algorithms_cert = Uint16(50)
     key_share = Uint16(51)
 
-class Extension(StructMeta):
-    struct = Members([
-        Member(ExtensionType, 'extension_type'),
-        Member(Uint16, 'length',
-            lambda args: Uint16(len(bytes(args.get('extension_data'))))),
-        Member(Select('extension_type', cases={
-            ExtensionType.supported_versions: SupportedVersions,
-            ExtensionType.supported_groups: NamedGroupList
-        }), 'extension_data'),
-    ])
+@meta.struct
+class Extension(meta.StructMeta):
+    extension_type: ExtensionType
+    length: Uint16 = lambda args: Uint16(len(bytes(args.extension_data)))
+    extension_data: meta.Select('extension_type', cases={
+        ExtensionType.supported_versions: SupportedVersions,
+        ExtensionType.supported_groups: NamedGroupList
+    }) = None
 
 Extensions = List(size_t=Uint16, elem_t=Extension)
 
