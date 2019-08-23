@@ -44,18 +44,23 @@ class Extension(meta.StructMeta):
 
 Extensions = List(size_t=Uint16, elem_t=Extension)
 
+# ------------------------------------------------------------------------------
+# Server Parameters
+
+@meta.struct
+class EncryptedExtensions(meta.StructMeta):
+    extensions: Extensions
+
 
 if __name__ == '__main__':
 
-    from protocol_ext_supportedgroups import NamedGroup
+    from protocol_ext_supportedgroups import NamedGroups, NamedGroup
 
     import unittest
 
     class TestUint(unittest.TestCase):
 
         def test_extension(self):
-
-            NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 
             e = Extension(
                 extension_type=ExtensionType.supported_groups,
@@ -68,5 +73,22 @@ if __name__ == '__main__':
 
             self.assertEqual(bytes(e)[:2], bytes(ExtensionType.supported_groups))
             self.assertEqual(Extension.from_bytes(bytes(e)), e)
+
+        def test_encrypted_extensions(self):
+
+            ee = EncryptedExtensions(
+                extensions=Extensions([
+                    Extension(
+                        extension_type=ExtensionType.supported_groups,
+                        extension_data=NamedGroupList(
+                            named_group_list=NamedGroups([
+                                NamedGroup.x25519, NamedGroup.secp256r1,
+                            ])
+                        )
+                    )
+                ])
+            )
+
+            self.assertEqual(EncryptedExtensions.from_bytes(bytes(ee)), ee)
 
     unittest.main()
