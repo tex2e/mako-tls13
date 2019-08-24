@@ -71,7 +71,8 @@ class Uint32(Uint):
 
 
 class OpaqueMeta(Type):
-    pass
+    def get_raw_bytes(self):
+        return self.byte
 
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
