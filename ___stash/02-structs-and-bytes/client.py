@@ -56,7 +56,9 @@ client_hello = TLSPlaintext(
                     extension_type=ExtensionType.signature_algorithms,
                     extension_data=SignatureSchemeList(
                         supported_signature_algorithms=SignatureSchemes([
-                            SignatureScheme.ed25519
+                            SignatureScheme.rsa_pss_rsae_sha256,
+                            SignatureScheme.rsa_pss_rsae_sha384,
+                            SignatureScheme.rsa_pss_rsae_sha512,
                         ])
                     )
                 ),
@@ -79,7 +81,7 @@ client_hello = TLSPlaintext(
 print(client_hello)
 print(hexdump(bytes(client_hello)))
 
-client_conn = connection.ClientConnection('tls13.pinterjann.is', 443)
+client_conn = connection.ClientConnection('localhost', 50007)
 client_conn.send_msg(bytes(client_hello))
 data = client_conn.recv_msg()
 print('Received:')
