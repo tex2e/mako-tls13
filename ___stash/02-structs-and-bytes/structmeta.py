@@ -29,6 +29,8 @@ class StructMeta(Type):
 
     def __post_init__(self):
 
+        self.set_parent(None)
+
         # create_emptyメソッドで生成されたとき(全ての要素がNoneのとき)は何もしない
         if all(not getattr(self, name) for name in self.get_struct().keys()):
             return
@@ -117,9 +119,18 @@ class StructMeta(Type):
                 output = textwrap.indent(output, prefix="  ").strip()
             else:
                 # その他の要素は出力が1行なので、コンソールの幅を超えないように折返し出力させる
-                output = '\n  '.join(textwrap.wrap(output, width=70))
+                nest = self.count_ancestors()
+                output = '\n  '.join(textwrap.wrap(output, width=70-(nest*2)))
             elems.append('+ ' + output)
         return title + "\n".join(elems)
+
+    def count_ancestors(self):
+        tmp = self.parent
+        count = 0
+        while tmp is not None:
+            tmp = tmp.parent
+            count += 1
+        return count
 
     def __len__(self):
         return len(bytes(self))
