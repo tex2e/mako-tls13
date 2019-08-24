@@ -240,6 +240,15 @@ def List(size_t, elem_t):
                 return 'List<%s>%s' % \
                     (self.__class__.size_t.__name__, repr(self.get_array()))
 
+        def __iter__(self):
+            return iter(self.array)
+
+        def find(self, arg):
+            if callable(arg):
+                return next((x for x in iter(self) if arg(x)), None)
+            else:
+                return next((x for x in iter(self) if x == arg), None)
+
     List.size_t = size_t
     List.elem_t = elem_t
     return List
