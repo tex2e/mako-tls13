@@ -1,5 +1,5 @@
 
-from type import Uint16
+from type import Uint16, Opaque
 import structmeta as meta
 
 from protocol_types import ContentType
@@ -17,7 +17,14 @@ class TLSPlaintext(meta.StructMeta):
     length: Uint16 = lambda self: Uint16(len(self.fragment))
     fragment: meta.Select('type', cases={
         ContentType.handshake: Handshake,
+        ContentType.change_cipher_spec: Opaque(1),
     })
+
+@meta.struct
+class TLSCiphertext(meta.StructMeta):
+    opaque_type: ContentType = ContentType.application_data
+    legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
+    encrypted_record: Opaque(Uint16)
 
 if __name__ == '__main__':
 

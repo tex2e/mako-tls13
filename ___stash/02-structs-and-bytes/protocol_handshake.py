@@ -4,6 +4,7 @@ import structmeta as meta
 
 from protocol_types import HandshakeType
 from protocol_hello import ClientHello, ServerHello
+from protocol_extensions import EncryptedExtensions
 
 # ------------------------------------------------------------------------------
 # Handshake Layer
@@ -15,6 +16,7 @@ class Handshake(meta.StructMeta):
     msg: meta.Select('msg_type', cases={
         HandshakeType.client_hello: ClientHello,
         HandshakeType.server_hello: ServerHello,
+        HandshakeType.encrypted_extensions: EncryptedExtensions,
     })
 
 

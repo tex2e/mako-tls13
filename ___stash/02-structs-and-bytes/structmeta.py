@@ -171,7 +171,8 @@ class Select:
         # 既に格納した値から使用する型を決定する
         ret = self.cases.get(value)
         if ret is None:
-            raise Exception('Select(%s) cannot map to class!' % value)
+            raise Exception('Select(%s) cannot map to class in %s!' % \
+                (value, instance.__class__.__name__))
         return ret
 
 
