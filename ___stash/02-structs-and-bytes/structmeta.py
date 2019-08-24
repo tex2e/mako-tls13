@@ -73,7 +73,6 @@ class StructMeta(Type):
         instance.set_parent(parent) # 子が親インスタンスを参照できるようにする
 
         for name, field in cls.get_struct().items():
-            # print('[+]', name, field.type)
             elem_t = field.type
 
             if isinstance(elem_t, Select):
