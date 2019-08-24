@@ -17,6 +17,7 @@ OpenSSL は TLS クライアントとしても使うことができます。
 ソースのダウンロードと展開：
 
 ```bash
+mkdir ~/local/download && cd ~/local/download
 wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_1c.zip
 unzip OpenSSL_1_1_1c.zip
 cd openssl-OpenSSL_1_1_1c
@@ -71,6 +72,11 @@ Strict-Transport-Security: max-age=31536000
 
 Congratulations! You're connected using TLSv1.3! という文字列がHTMLの中にあれば成功です！
 
+{{site.data.alerts.important}}
+通信が成功したからといって、OpenSSLのzipファイルやソースコードを消さないようにしてください。
+後で実行時にクライアントとサーバで同じ鍵が導出できたか確認するために、ソースコードを直接編集してデバッグ用のプログラムを埋め込み、再度コンパイルするからです。
+また、ソースコードを編集する前後の差分を取るために、元のソースコードがあるzipファイルも消さないようにしてください。
+{{site.data.alerts.end}}
 
 ## curl 7.52.0
 
