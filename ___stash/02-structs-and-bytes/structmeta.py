@@ -39,7 +39,7 @@ class StructMeta(Type):
             elem = getattr(self, name)
 
             # デフォルト値がラムダのとき、ラムダを評価した値を格納する
-            if callable(field.default):
+            if callable(field.default) and not isinstance(elem, field.type):
                 setattr(self, name, field.default(self))
 
             # 要素がStructMetaとListのときは、親インスタンスを参照できるようにする
