@@ -90,7 +90,7 @@ def OpaqueFix(size):
             max_size = OpaqueFix.size
             assert isinstance(byte, (bytes, bytearray))
             assert len(byte) <= max_size
-            self.byte = byte.rjust(max_size, b'\x00')
+            self.byte = bytes(byte).rjust(max_size, b'\x00')
 
         def __bytes__(self):
             return self.byte
@@ -120,7 +120,7 @@ def OpaqueVar(size_t):
         def __init__(self, byte):
             assert isinstance(byte, (bytes, bytearray))
             size_t = OpaqueVar.size_t
-            self.byte = byte
+            self.byte = bytes(byte)
             self.size_t = size_t
 
         def __bytes__(self):
