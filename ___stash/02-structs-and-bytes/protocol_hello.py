@@ -1,4 +1,5 @@
 
+import os
 from type import Uint8, Uint16, Opaque, List
 import structmeta as meta
 
@@ -15,19 +16,19 @@ OpaqueUint8 = Opaque(size_t=Uint8)
 @meta.struct
 class ClientHello(meta.StructMeta):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
-    random: Random
-    legacy_session_id: OpaqueUint8
+    random: Random = lambda self: Random(os.urandom(32))
+    legacy_session_id: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
     cipher_suites: CipherSuites
-    legacy_compression_methods: OpaqueUint8
+    legacy_compression_methods: OpaqueUint8 = OpaqueUint8(b'\x00')
     extensions: Extensions
 
 @meta.struct
 class ServerHello(meta.StructMeta):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
-    random: Random
-    legacy_session_id_echo: OpaqueUint8
+    random: Random = lambda self: Random(os.urandom(32))
+    legacy_session_id_echo: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
     cipher_suite: CipherSuite
-    legacy_compression_methods: OpaqueUint8
+    legacy_compression_methods: OpaqueUint8 = OpaqueUint8(b'\x00')
     extensions: Extensions
 
 
