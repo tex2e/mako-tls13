@@ -2,8 +2,8 @@
 import hmac
 import hashlib
 
-from type import Uint16, Opaque
-OpaqueUint8 = Opaque(Uint16)
+from type import Uint8, Uint16, Opaque
+OpaqueUint8 = Opaque(Uint8)
 
 def divceil(n, d) -> int:
     q, r = divmod(n, d)
@@ -89,7 +89,6 @@ def HKDF_expand_label(secret, label, hash_value, length,
     hkdf_label += bytes(Uint16(length))
     hkdf_label += bytes(OpaqueUint8(b'tls13 ' + label))
     hkdf_label += bytes(OpaqueUint8(hash_value))
-    print('[+++] hkdf_label:', hkdf_label.hex())
 
     return HKDF_expand(secret, hkdf_label, length, hash_name)
 
