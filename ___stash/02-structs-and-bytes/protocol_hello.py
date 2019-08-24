@@ -2,6 +2,7 @@
 from type import Uint8, Uint16, Opaque, List
 import structmeta as meta
 
+from protocol_ciphersuite import CipherSuites, CipherSuite
 from protocol_extensions import Extension, Extensions
 
 # ------------------------------------------------------------------------------
@@ -10,8 +11,6 @@ from protocol_extensions import Extension, Extensions
 ProtocolVersion = Uint16
 Random = Opaque(32)
 OpaqueUint8 = Opaque(size_t=Uint8)
-CipherSuite = Uint16
-CipherSuites = List(size_t=Uint16, elem_t=CipherSuite)
 
 @meta.struct
 class ClientHello(meta.StructMeta):
@@ -43,8 +42,10 @@ if __name__ == '__main__':
                 random=Random(bytes.fromhex('AA' * 32)),
                 legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
                 cipher_suites=CipherSuites([
-                    CipherSuite(0x1302), CipherSuite(0x1303),
-                    CipherSuite(0x1301), CipherSuite(0x00ff)]),
+                    CipherSuite.TLS_AES_256_GCM_SHA384,
+                    CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+                    CipherSuite.TLS_AES_128_GCM_SHA256,
+                    CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV]),
                 legacy_compression_methods=OpaqueUint8(b'\x00'),
                 extensions=Extensions([]),
             )
@@ -69,8 +70,9 @@ if __name__ == '__main__':
                 random=Random(bytes.fromhex('AA' * 32)),
                 legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
                 cipher_suites=CipherSuites([
-                    CipherSuite(0x1302), CipherSuite(0x1303),
-                    CipherSuite(0x1301), CipherSuite(0x00ff)]),
+                    CipherSuite.TLS_AES_256_GCM_SHA384,
+                    CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+                    CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV]),
                 legacy_compression_methods=OpaqueUint8(b'\x00'),
                 extensions=Extensions([
                     Extension(
