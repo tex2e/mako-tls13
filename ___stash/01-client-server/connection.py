@@ -15,7 +15,7 @@ class Connection:
     def recv_msg(self):
         return self.socket.recv(2**14)
 
-    def close(slef):
+    def close(self):
         return self.socket.close()
 
 class ClientConnection(Connection):
