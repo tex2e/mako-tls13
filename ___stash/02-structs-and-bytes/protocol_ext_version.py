@@ -17,7 +17,7 @@ ProtocolVersions = List(size_t=Uint8, elem_t=ProtocolVersion)
 
 @meta.struct
 class SupportedVersions(meta.StructMeta):
-    version: meta.Select('Handshake.msg_type', cases={
+    versions: meta.Select('Handshake.msg_type', cases={
         HandshakeType.client_hello: ProtocolVersions,
         HandshakeType.server_hello: ProtocolVersion,
     })
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
             h = Handshake(
                 msg_type=HandshakeType.client_hello,
-                msg=SupportedVersions(version=ProtocolVersions([
+                msg=SupportedVersions(versions=ProtocolVersions([
                     ProtocolVersion.TLS13, ProtocolVersion.TLS12,
                     ProtocolVersion.TLS11,
                 ])),)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
             h = Handshake(
                 msg_type=HandshakeType.server_hello,
-                msg=SupportedVersions(version=ProtocolVersion.TLS13),)
+                msg=SupportedVersions(versions=ProtocolVersion.TLS13),)
 
             self.assertEqual(bytes(h), bytes.fromhex('02 0304'))
             self.assertEqual(Handshake.from_bytes(bytes(h)), h)

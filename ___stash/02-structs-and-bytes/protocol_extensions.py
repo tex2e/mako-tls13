@@ -4,6 +4,7 @@ import structmeta as meta
 
 from protocol_ext_version import SupportedVersions
 from protocol_ext_supportedgroups import NamedGroupList
+from protocol_ext_keyshare import KeyShareHello
 
 class ExtensionType(Enum):
     elem_t = Uint16
@@ -39,7 +40,8 @@ class Extension(meta.StructMeta):
     length: Uint16 = lambda self: Uint16(len(bytes(self.extension_data)))
     extension_data: meta.Select('extension_type', cases={
         ExtensionType.supported_versions: SupportedVersions,
-        ExtensionType.supported_groups: NamedGroupList
+        ExtensionType.supported_groups: NamedGroupList,
+        ExtensionType.key_share: KeyShareHello,
     })
 
 Extensions = List(size_t=Uint16, elem_t=Extension)

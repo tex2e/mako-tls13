@@ -3,7 +3,7 @@ from type import Uint8, Uint16, Uint24, Opaque, List, Enum
 import structmeta as meta
 
 from protocol_types import HandshakeType
-from protocol_hello import ClientHello
+from protocol_hello import ClientHello, ServerHello
 
 # ------------------------------------------------------------------------------
 # Handshake Layer
@@ -14,6 +14,7 @@ class Handshake(meta.StructMeta):
     length: Uint24 = lambda self: Uint24(len(bytes(self.msg)))
     msg: meta.Select('msg_type', cases={
         HandshakeType.client_hello: ClientHello,
+        HandshakeType.server_hello: ServerHello,
     })
 
 
@@ -61,7 +62,7 @@ if __name__ == '__main__':
                         Extension(
                             extension_type=ExtensionType.supported_versions,
                             extension_data=SupportedVersions(
-                                version=ProtocolVersions([
+                                versions=ProtocolVersions([
                                     ProtocolVersion.TLS13, ProtocolVersion.TLS12])
                             )
                         ),
