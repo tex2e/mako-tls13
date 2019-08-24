@@ -71,6 +71,14 @@ if __name__ == '__main__':
                 extensions=Extensions([]),
             )
 
+            expected = bytes.fromhex(
+                '03 03 AA AA AA AA AA AA  AA AA AA AA AA AA AA AA'
+                'AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA'
+                'AA AA 20 BB BB BB BB BB  BB BB BB BB BB BB BB BB'
+                'BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB'
+                'BB BB BB 13 03 00 00 00                         ')
+
+            self.assertEqual(bytes(sh), expected)
             self.assertEqual(ServerHello.from_bytes(bytes(sh)), sh)
 
         def test_clienthello_has_extensions(self):
