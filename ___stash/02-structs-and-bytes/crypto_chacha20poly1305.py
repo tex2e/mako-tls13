@@ -155,7 +155,23 @@ def compare_const_time(a, b):
         result |= x ^ y
     return result == 0
 
-class Chacha20Poly1305:
+class Cipher:
+
+    def get_nonce(self):
+        nonce = bytes(self.nonce)
+        seq_number = self.seq_number.to_bytes(len(nonce), 'big')
+        res = self.xor(nonce, seq_number)
+
+        self.seq_number += 1
+        return res
+
+    def xor(self, b1, b2):
+        result = bytearray(b1)
+        for i, b in enumerate(b2):
+            result[i] ^= b
+        return bytes(result)
+
+class Chacha20Poly1305(Cipher):
     key_size = 32
     nonce_size = 12
 
@@ -165,7 +181,8 @@ class Chacha20Poly1305:
         self.seq_number = 0
 
     def encrypt_and_tag(self, plaintext, aad):
-        return chacha20_aead_encrypt(key=self.key, nonce=self.nonce,
+        nonce = self.get_nonce()
+        return chacha20_aead_encrypt(key=self.key, nonce=nonce,
                                      plaintext=plaintext, aad=aad)
 
     def decrypt_and_verify(self, ciphertext, aad, mac=None):
@@ -173,7 +190,8 @@ class Chacha20Poly1305:
             mac = ciphertext[-16:]
             ciphertext = ciphertext[:-16]
 
-        plaintext, tag = chacha20_aead_decrypt(key=self.key, nonce=self.nonce,
+        nonce = self.get_nonce()
+        plaintext, tag = chacha20_aead_decrypt(key=self.key, nonce=nonce,
                                                ciphertext=ciphertext, aad=aad)
 
         # print('+ [+] plaintext:\n', plaintext.hex())
