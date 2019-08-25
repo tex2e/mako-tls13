@@ -164,16 +164,24 @@ class Chacha20Poly1305:
         self.nonce = nonce
         self.seq_number = 0
 
-    def encrypt_and_tag(self, key, nonce, plaintext, aad):
-        return chacha20_aead_encrypt(key=key, nonce=nonce,
+    def encrypt_and_tag(self, plaintext, aad):
+        return chacha20_aead_encrypt(key=self.key, nonce=self.nonce,
                                      plaintext=plaintext, aad=aad)
 
-    def decrypt_and_verify(self, key, nonce, plaintext, mac, aad):
-        plaintext, tag = chacha20_aead_decrypt(key=key, nonce=nonce,
-                                               plaintext=plaintext, aad=aad)
+    def decrypt_and_verify(self, ciphertext, aad, mac=None):
+        if mac is None:
+            mac = ciphertext[-16:]
+            ciphertext = ciphertext[:-16]
 
-        if compare_const_time(tag, mac):
-            return Exception('Poly1305: Bad Tag!')
+        plaintext, tag = chacha20_aead_decrypt(key=self.key, nonce=self.nonce,
+                                               ciphertext=ciphertext, aad=aad)
+
+        # print('+ [+] plaintext:\n', plaintext.hex())
+        # print('+ [+] mac:', mac.hex())
+        # print('+ [+] tag:', tag.hex())
+
+        if not compare_const_time(tag, mac):
+            raise Exception('Poly1305: Bad Tag!')
 
         return plaintext
 
