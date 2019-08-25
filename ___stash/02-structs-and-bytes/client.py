@@ -204,3 +204,14 @@ print(obj)
 # TODO: Exception: Select(HandshakeType.certificate) cannot map to class in Handshake!
 
 client_conn.close()
+
+# memo:
+#
+# openssl_server
+#   ~/local/bin/openssl s_server -accept 50007 \
+#     -cert ./cert/server.crt -key ./cert/server.key -tls1_3 -state -debug
+# openssl_make
+#   cd ~/local/download/openssl-OpenSSL_1_1_1c/build
+#   make -j4 && make install_runtime install_dev
+# client
+#   python client.py
