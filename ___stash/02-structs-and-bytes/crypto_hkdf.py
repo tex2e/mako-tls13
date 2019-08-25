@@ -89,8 +89,11 @@ def HKDF_expand_label(secret, label, hash_value, length,
     hkdf_label += bytes(Uint16(length))
     hkdf_label += bytes(OpaqueUint8(b'tls13 ' + label))
     hkdf_label += bytes(OpaqueUint8(hash_value))
+    # print('- [-] hkdf_label:', hkdf_label.hex())
 
-    return HKDF_expand(secret, hkdf_label, length, hash_name)
+    out = HKDF_expand(secret, hkdf_label, length, hash_name)
+    # print('- [-] out:', out.hex())
+    return out
 
 def derive_secret(secret, label, messages, hash_name='sha256') -> bytearray:
     # Derive-Secret (https://tools.ietf.org/html/rfc8446#section-7.1)
@@ -111,3 +114,8 @@ def transcript_hash(messages, hash_name='sha256') -> bytearray:
     # 注意：Record層（TLSPlaintext）は含めないで Handshake の部分だけを結合してハッシュを求める
     assert isinstance(messages, (bytes, bytearray))
     return secure_hash(messages, hash_name)
+
+def gen_key_and_iv(secret, key_size, nonce_size, hash_name='sha256'):
+    write_key = HKDF_expand_label(secret, b'key', b'', key_size,   hash_name)
+    write_iv  = HKDF_expand_label(secret, b'iv',  b'', nonce_size, hash_name)
+    return write_key, write_iv
