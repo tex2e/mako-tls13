@@ -1,5 +1,5 @@
 
-from type import Uint16, Opaque
+from type import Uint8, Uint16, Opaque
 import structmeta as meta
 
 from protocol_types import ContentType
@@ -25,6 +25,22 @@ class TLSCiphertext(meta.StructMeta):
     opaque_type: ContentType = ContentType.application_data
     legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
     encrypted_record: Opaque(Uint16)
+
+class TLSInnerPlaintext:
+    @staticmethod
+    def append_pad(tlsplaintext):
+        length_of_padding = 16 - len(data) % 16 - 1
+        pad = b'\x00' * length_of_padding
+        return bytes(tlsplaintext.fragment) + bytes(tlsplaintext.type) + pad
+
+    @staticmethod
+    def split_pad(data):
+        for pos, value in zip(reversed(range(len(data))), reversed(data)):
+            if value != 0:
+                break
+        return data[:pos], ContentType(Uint8(value)) #, data[pos+1:]
+        # content, type, zeros
+
 
 if __name__ == '__main__':
 
