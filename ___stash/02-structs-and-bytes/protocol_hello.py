@@ -56,7 +56,8 @@ if __name__ == '__main__':
                 'AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA'
                 'AA AA 20 BB BB BB BB BB  BB BB BB BB BB BB BB BB'
                 'BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB'
-                'BB BB BB 00 08 13 02 13  03 13 01 00 FF 00 00 00')
+                'BB BB BB 00 08 13 02 13  03 13 01 00 FF 01 00 00'
+                '00                                              ')
 
             self.assertEqual(bytes(ch), expected)
             self.assertEqual(ClientHello.from_bytes(bytes(ch)), ch)
@@ -76,7 +77,7 @@ if __name__ == '__main__':
                 'AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA'
                 'AA AA 20 BB BB BB BB BB  BB BB BB BB BB BB BB BB'
                 'BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB'
-                'BB BB BB 13 03 00 00 00                         ')
+                'BB BB BB 13 03 01 00 00  00                     ')
 
             self.assertEqual(bytes(sh), expected)
             self.assertEqual(ServerHello.from_bytes(bytes(sh)), sh)
