@@ -17,7 +17,7 @@ class TLSPlaintext(meta.StructMeta):
     length: Uint16 = lambda self: Uint16(len(self.fragment))
     fragment: meta.Select('type', cases={
         ContentType.handshake: Handshake,
-        ContentType.change_cipher_spec: Opaque(1),
+        ContentType.change_cipher_spec: Opaque(lambda self: self.length),
     })
 
 @meta.struct
