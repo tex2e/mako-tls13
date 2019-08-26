@@ -117,12 +117,14 @@ def OpaqueFix(size):
             size = cls.size
             if callable(size): # ラムダのときは実行時に評価した値がサイズになる
                 size = int(size(parent))
-            return OpaqueFix(fs.read(size))
+            opaque = OpaqueFix(fs.read(size))
+            opaque.set_parent(parent)
+            return opaque
 
         def __repr__(self):
             size = OpaqueFix.size
             if callable(size):
-                size = int(size(self))
+                size = int(size(self.parent))
             return 'Opaque[%d](%s)' % (size, repr(self.byte))
 
     OpaqueFix.size = size
@@ -207,21 +209,13 @@ def List(size_t, elem_t):
             list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
             elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
-            if elem_size: # 要素が固定長の場合
-                array = []
-                for i in range(list_size // elem_size): # 要素数
-                    elem = elem_t.from_fs(fs, parent)
-                    array.append(elem)
-                return List(array)
-
-            else: # 要素が可変長の場合
-                array = []
-                # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
-                startpos = fs.tell()
-                while (fs.tell() - startpos) < list_size:
-                    elem = elem_t.from_fs(fs, parent)
-                    array.append(elem)
-                return List(array)
+            array = []
+            # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
+            startpos = fs.tell()
+            while (fs.tell() - startpos) < list_size:
+                elem = elem_t.from_fs(fs, parent)
+                array.append(elem)
+            return List(array)
 
         def __eq__(self, other):
             if len(self.get_array()) != len(other.get_array()):
