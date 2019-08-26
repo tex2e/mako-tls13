@@ -14,6 +14,10 @@ class Type:
     def from_bytes(cls, data):
         return cls.from_fs(io.BytesIO(data))
 
+    # 構造体の構築時には、Opaqueは親インスタンスを参照できるようにする。
+    def set_parent(self, instance):
+        self.parent = instance
+
 # UintNの抽象クラス
 class Uint(Type):
     def __init__(self, value):
@@ -80,10 +84,6 @@ class OpaqueMeta(Type):
     def __len__(self):
         return len(self.byte)
 
-    # 構造体の構築時には、Opaqueは親インスタンスを参照できるようにする。
-    def set_parent(self, parent):
-        self.parent = parent
-
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
         return OpaqueFix(size_t)
@@ -113,10 +113,10 @@ def OpaqueFix(size):
             return self.byte
 
         @classmethod
-        def from_fs(cls, fs, instance=None):
+        def from_fs(cls, fs, parent=None):
             size = cls.size
             if callable(size): # ラムダのときは実行時に評価した値がサイズになる
-                size = int(size(instance))
+                size = int(size(parent))
             return OpaqueFix(fs.read(size))
 
         def __repr__(self):
@@ -144,7 +144,7 @@ def OpaqueVar(size_t):
             return bytes(UintN(len(self.byte))) + self.byte
 
         @classmethod
-        def from_fs(cls, fs, instance=None):
+        def from_fs(cls, fs, parent=None):
             size_t = OpaqueVar.size_t
             length = int(size_t.from_fs(fs))
             byte   = fs.read(length)
@@ -166,7 +166,7 @@ def List(size_t, elem_t):
 
     # List ではスコープが異なる(グローバルとローカル)と、
     # 組み込み関数 issubclass が期待通りに動かない場合があるので、
-    # 子クラスの基底クラス名の一覧の中に、親クラス名が存在すれば True を返す関数を作成した。
+    # 子クラスの基底クラス名の一覧の中に親クラス名が存在すれば True を返す関数を使用する。
     # この関数は List クラス内で issubclass の代わりに利用する。
     def my_issubclass(child, parent):
         if not hasattr(child, '__bases__'):
@@ -185,8 +185,8 @@ def List(size_t, elem_t):
 
         # 構造体の構築時には、Listは親インスタンスを参照できるようにする。
         # そして要素がStructMetaであれば、各要素の.set_parent()に親インスタンスを渡す。
-        def set_parent(self, parent):
-            self.parent = parent
+        def set_parent(self, instance):
+            self.parent = instance
 
             from structmeta import StructMeta
             if my_issubclass(List.elem_t, StructMeta):
@@ -207,13 +207,10 @@ def List(size_t, elem_t):
             list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
             elem_size = elem_t.size # 要素の長さを表す部分の長さ
 
-            has_StructMeta = my_issubclass(elem_t, StructMeta)
-            params = {'parent': parent} if has_StructMeta else {}
-
             if elem_size: # 要素が固定長の場合
                 array = []
                 for i in range(list_size // elem_size): # 要素数
-                    elem = elem_t.from_fs(fs, **params)
+                    elem = elem_t.from_fs(fs, parent)
                     array.append(elem)
                 return List(array)
 
@@ -222,7 +219,7 @@ def List(size_t, elem_t):
                 # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
                 startpos = fs.tell()
                 while (fs.tell() - startpos) < list_size:
-                    elem = elem_t.from_fs(fs, **params)
+                    elem = elem_t.from_fs(fs, parent)
                     array.append(elem)
                 return List(array)
 
@@ -265,15 +262,15 @@ def List(size_t, elem_t):
 
 # 列挙型を表すためのクラス
 class Enum(Type, BuildinEnum):
-    # 親クラスにクラス変数を書くと、子クラスでEnumが定義できなくなるので、親では定義しないこと。
-    # elem_t = None # Enumの要素の型(例えば Uint16)
+    # 親クラスにクラス変数を定義すると、子クラスでEnumが定義できなくなるので注意。
+    # elem_t = UintN # Enumの要素の型
 
     # Enum は .name でラベル名、.value で値を得ることができる
     def __bytes__(self):
         return bytes(self.value)
 
     @classmethod
-    def from_fs(cls, fs):
+    def from_fs(cls, fs, parent=None):
         elem_t = cls.get_type()
         return cls(elem_t.from_fs(fs))
 

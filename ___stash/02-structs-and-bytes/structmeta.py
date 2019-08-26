@@ -2,21 +2,15 @@
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
-from type import Type, List, ListMeta, OpaqueMeta
+from type import Type, List, ListMeta
 
 import dataclasses
-
-def struct(cls):
-    for name, elem_t in cls.__annotations__.items():
-        if not hasattr(cls, name):
-            setattr(cls, name, None)
-    return dataclasses.dataclass(repr=False)(cls)
 
 # TLSメッセージの構造体を表すためのクラス群
 # 使い方：
 #
-#   @struct
-#   class ClientHello(StructMeta):
+#   @meta.struct
+#   class ClientHello(meta.StructMeta):
 #       legacy_version: ProtocolVersion
 #       random: Random
 #       legacy_session_id: Opaque(size_t=Uint8)
@@ -24,6 +18,13 @@ def struct(cls):
 #       legacy_compression_methods: List(size_t=Uint16, elem_t=Uint8)
 #       extensions: List(size_t=Uint16, elem_t=Extension)
 #
+
+# 構造体のデコレータ
+def struct(cls):
+    for name, elem_t in cls.__annotations__.items():
+        if not hasattr(cls, name):
+            setattr(cls, name, None)
+    return dataclasses.dataclass(repr=False)(cls)
 
 class StructMeta(Type):
 
@@ -42,8 +43,8 @@ class StructMeta(Type):
             if callable(field.default) and not isinstance(elem, field.type):
                 setattr(self, name, field.default(self))
 
-            # 要素がStructMeta,List,Opaqueのときは、親インスタンスを参照できるようにする
-            if isinstance(elem, (StructMeta, ListMeta, OpaqueMeta)):
+            # 要素が親インスタンスを参照できるようにする
+            if isinstance(elem, Type):
                 elem.set_parent(self)
 
     @classmethod
@@ -80,12 +81,7 @@ class StructMeta(Type):
                 elem_t = elem_t.select_type_by_switch(instance)
 
             # バイト列から構造体への変換
-            if (issubclass(elem_t, StructMeta) or issubclass(elem_t, ListMeta) or
-                hasattr(elem_t, 'get_raw_bytes')):
-                # メタ構造体、リスト、バイト列のとき
-                elem = elem_t.from_fs(fs, instance)
-            else:
-                elem = elem_t.from_fs(fs)
+            elem = elem_t.from_fs(fs, instance)
             # 値を構造体へ格納
             setattr(instance, name, elem)
         return instance
