@@ -19,6 +19,7 @@ from protocol_ext_signature import SignatureSchemeList, \
     SignatureSchemes, SignatureScheme
 from protocol_ext_keyshare import KeyShareHello, \
     KeyShareEntrys, KeyShareEntry, OpaqueUint16
+from protocol_authentication import Hash
 
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
@@ -93,6 +94,8 @@ print('[<<<] Recv:')
 print(hexdump(data))
 
 stream = io.BytesIO(data)
+
+# Server Hello
 server_hello = TLSPlaintext.from_fs(stream)
 print(server_hello)
 messages += bytes(server_hello.fragment)
@@ -116,6 +119,8 @@ hash_name   = CipherSuite.get_hash_name(cipher_suite)
 secret_size = CipherSuite.get_hash_size(cipher_suite)
 secret = bytearray(secret_size)
 psk    = bytearray(secret_size)
+
+Hash.length = hkdf.hash_size(hash_name)
 
 # early secret
 secret = hkdf.HKDF_extract(secret, psk, hash_name)
@@ -167,17 +172,18 @@ print('[+] server_write_iv:', server_write_iv.hex())
 print('[+] client_write_key:', client_write_key.hex())
 print('[+] client_write_iv:', client_write_iv.hex())
 
+# Change Cipher Spec
 change_cipher_spec = TLSPlaintext.from_fs(stream)
 print(change_cipher_spec)
 
 # Encrypted Extensions
 tlsciphertext = TLSCiphertext.from_fs(stream)
-print(tlsciphertext)
+# print(tlsciphertext)
 
 encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
 aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
 ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-print(hexdump(bytes(ret)))
+# print(hexdump(bytes(ret)))
 ret, content_type = TLSInnerPlaintext.split_pad(ret)
 print(hexdump(bytes(ret)))
 obj = TLSPlaintext(
@@ -186,13 +192,14 @@ obj = TLSPlaintext(
 )
 print(obj)
 
+# Certificate
 tlsciphertext = TLSCiphertext.from_fs(stream)
-print(tlsciphertext)
+# print(tlsciphertext)
 
 encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
 aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
 ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-print(hexdump(bytes(ret)))
+# print(hexdump(bytes(ret)))
 ret, content_type = TLSInnerPlaintext.split_pad(ret)
 print(hexdump(bytes(ret)))
 obj = TLSPlaintext(
@@ -201,7 +208,37 @@ obj = TLSPlaintext(
 )
 print(obj)
 
-# TODO: Exception: Select(HandshakeType.certificate) cannot map to class in Handshake!
+# Certificate Verify
+tlsciphertext = TLSCiphertext.from_fs(stream)
+# print(tlsciphertext)
+
+encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
+aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
+ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
+# print(hexdump(bytes(ret)))
+ret, content_type = TLSInnerPlaintext.split_pad(ret)
+print(hexdump(bytes(ret)))
+obj = TLSPlaintext(
+    type=content_type,
+    fragment=Handshake.from_bytes(ret)
+)
+print(obj)
+
+# Finished
+tlsciphertext = TLSCiphertext.from_fs(stream)
+# print(tlsciphertext)
+
+encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
+aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
+ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
+# print(hexdump(bytes(ret)))
+ret, content_type = TLSInnerPlaintext.split_pad(ret)
+print(hexdump(bytes(ret)))
+obj = TLSPlaintext(
+    type=content_type,
+    fragment=Handshake.from_bytes(ret)
+)
+print(obj)
 
 client_conn.close()
 

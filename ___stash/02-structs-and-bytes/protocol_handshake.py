@@ -5,6 +5,7 @@ import structmeta as meta
 from protocol_types import HandshakeType
 from protocol_hello import ClientHello, ServerHello
 from protocol_extensions import EncryptedExtensions
+from protocol_authentication import Certificate, CertificateVerify, Finished
 
 # ------------------------------------------------------------------------------
 # Handshake Layer
@@ -17,6 +18,9 @@ class Handshake(meta.StructMeta):
         HandshakeType.client_hello: ClientHello,
         HandshakeType.server_hello: ServerHello,
         HandshakeType.encrypted_extensions: EncryptedExtensions,
+        HandshakeType.certificate: Certificate,
+        HandshakeType.certificate_verify: CertificateVerify,
+        HandshakeType.finished: Finished
     })
 
 
