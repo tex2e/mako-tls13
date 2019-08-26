@@ -119,3 +119,6 @@ def gen_key_and_iv(secret, key_size, nonce_size, hash_name='sha256'):
     write_key = HKDF_expand_label(secret, b'key', b'', key_size,   hash_name)
     write_iv  = HKDF_expand_label(secret, b'iv',  b'', nonce_size, hash_name)
     return write_key, write_iv
+
+def hash_size(hash_name):
+    return getattr(hashlib, hash_name)().digest_size
