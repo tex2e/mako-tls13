@@ -80,6 +80,10 @@ class OpaqueMeta(Type):
     def __len__(self):
         return len(self.byte)
 
+    # 構造体の構築時には、Opaqueは親インスタンスを参照できるようにする。
+    def set_parent(self, parent):
+        self.parent = parent
+
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
         return OpaqueFix(size_t)
@@ -97,12 +101,13 @@ def OpaqueFix(size):
         size = 0
 
         def __init__(self, byte):
+            assert isinstance(byte, (bytes, bytearray))
             size = OpaqueFix.size
             if callable(size): # ラムダのときは実行時に評価した値がサイズになる
-                size = int(size(self))
-            assert isinstance(byte, (bytes, bytearray))
-            assert len(byte) <= size
-            self.byte = bytes(byte).rjust(size, b'\x00')
+                self.byte = byte
+            else:
+                assert len(byte) <= size
+                self.byte = bytes(byte).rjust(size, b'\x00')
 
         def __bytes__(self):
             return self.byte
@@ -110,7 +115,7 @@ def OpaqueFix(size):
         @classmethod
         def from_fs(cls, fs, instance=None):
             size = cls.size
-            if callable(size):
+            if callable(size): # ラムダのときは実行時に評価した値がサイズになる
                 size = int(size(instance))
             return OpaqueFix(fs.read(size))
 
@@ -139,7 +144,7 @@ def OpaqueVar(size_t):
             return bytes(UintN(len(self.byte))) + self.byte
 
         @classmethod
-        def from_fs(cls, fs):
+        def from_fs(cls, fs, instance=None):
             size_t = OpaqueVar.size_t
             length = int(size_t.from_fs(fs))
             byte   = fs.read(length)
@@ -393,7 +398,7 @@ if __name__ == '__main__':
             self.assertEqual(OpaqueUnk.from_bytes(bytes(o)), o)
 
         def test_opaque_fix_lambda_parent_length(self):
-            OpaqueUnk = Opaque(lambda self: self.parent.length)
+            OpaqueUnk = Opaque(lambda self: self.length)
 
             import structmeta as meta
             @meta.struct
@@ -401,9 +406,9 @@ if __name__ == '__main__':
                 length: Uint8
                 fragment: OpaqueUnk
 
-            t = Test(length=4, fragment=OpaqueUnk(b'\x01\x23\x45\x67'))
+            t = Test(length=Uint8(4), fragment=OpaqueUnk(b'\x01\x23\x45\x67'))
             self.assertEqual(bytes(t), b'\x04\x01\x23\x45\x67')
-            self.assertEqual(Opaque4.from_bytes(bytes(t)), t)
+            self.assertEqual(Test.from_bytes(bytes(t)), t)
 
         def test_opaque_var(self):
             # 可変長のOpaqueでデータ長を表す部分がUint8のとき

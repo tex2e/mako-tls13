@@ -2,7 +2,7 @@
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
-from type import Type, List, ListMeta
+from type import Type, List, ListMeta, OpaqueMeta
 
 import dataclasses
 
@@ -42,8 +42,8 @@ class StructMeta(Type):
             if callable(field.default) and not isinstance(elem, field.type):
                 setattr(self, name, field.default(self))
 
-            # 要素がStructMetaとListのときは、親インスタンスを参照できるようにする
-            if isinstance(elem, (StructMeta, ListMeta)):
+            # 要素がStructMeta,List,Opaqueのときは、親インスタンスを参照できるようにする
+            if isinstance(elem, (StructMeta, ListMeta, OpaqueMeta)):
                 elem.set_parent(self)
 
     @classmethod
@@ -80,8 +80,9 @@ class StructMeta(Type):
                 elem_t = elem_t.select_type_by_switch(instance)
 
             # バイト列から構造体への変換
-            if issubclass(elem_t, StructMeta) or issubclass(elem_t, ListMeta):
-                # メタ構造体とリストのとき
+            if (issubclass(elem_t, StructMeta) or issubclass(elem_t, ListMeta) or
+                hasattr(elem_t, 'get_raw_bytes')):
+                # メタ構造体、リスト、バイト列のとき
                 elem = elem_t.from_fs(fs, instance)
             else:
                 elem = elem_t.from_fs(fs)
