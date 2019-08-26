@@ -103,8 +103,8 @@ def derive_secret(secret, label, messages, hash_name='sha256') -> bytearray:
     #                           Transcript-Hash(Messages), Hash.length)
     #
     hash_value = transcript_hash(messages, hash_name)
-    hash_len = getattr(hashlib, hash_name)().digest_size
-    return HKDF_expand_label(secret, label, hash_value, hash_len, hash_name)
+    hash_size = getattr(hashlib, hash_name)().digest_size
+    return HKDF_expand_label(secret, label, hash_value, hash_size, hash_name)
 
 def transcript_hash(messages, hash_name='sha256') -> bytearray:
     # Transcript Hash (https://tools.ietf.org/html/rfc8446#section-4.4.1)
