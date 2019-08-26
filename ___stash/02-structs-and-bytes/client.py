@@ -1,9 +1,11 @@
 
+# python 3.7 >= is required!
+
 import os
 import io
 
 import connection
-from type import Uint16
+from type import Uint8, Uint16
 from disp import hexdump
 
 from protocol_types import ContentType, HandshakeType
@@ -25,6 +27,7 @@ from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
 
 messages = bytearray(0)
+tls_messages = {}
 
 secret_key = os.urandom(32)
 public_key = x25519(secret_key)
@@ -81,6 +84,7 @@ client_hello = TLSPlaintext(
     )
 )
 messages += bytes(client_hello.fragment)
+tls_messages['ClientHello'] = client_hello
 
 print(client_hello)
 print('[>>>] Send:')
@@ -99,6 +103,7 @@ stream = io.BytesIO(data)
 server_hello = TLSPlaintext.from_fs(stream)
 print(server_hello)
 messages += bytes(server_hello.fragment)
+tls_messages['ServerHello'] = server_hello
 
 cipher_suite = server_hello.fragment.msg.cipher_suite
 for ext in server_hello.fragment.msg.extensions:
@@ -172,73 +177,37 @@ print('[+] server_write_iv:', server_write_iv.hex())
 print('[+] client_write_key:', client_write_key.hex())
 print('[+] client_write_iv:', client_write_iv.hex())
 
-# Change Cipher Spec
-change_cipher_spec = TLSPlaintext.from_fs(stream)
-print(change_cipher_spec)
+while True:
+    firstbyte = stream.read(1)
+    if firstbyte == b'':
+        break
+    stream.seek(-1, io.SEEK_CUR)
 
-# Encrypted Extensions
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
+    content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
 
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
-print(obj)
+    if content_type == ContentType.change_cipher_spec:
+        # ChangeCipherSpec
+        change_cipher_spec = TLSPlaintext.from_fs(stream)
+        print(change_cipher_spec)
+        tls_messages['ChangeCipherSpec'] = change_cipher_spec
 
-# Certificate
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
+    elif content_type in (ContentType.handshake, ContentType.application_data):
+        # EncryptedExtensions, Certificate, CertificateVerify, Finished
 
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
-print(obj)
-
-# Certificate Verify
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
-
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
-print(obj)
-
-# Finished
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
-
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
-print(obj)
+        tlsciphertext = TLSCiphertext.from_fs(stream)
+        # print(tlsciphertext)
+        encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
+        aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
+        ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
+        # print(hexdump(bytes(ret)))
+        ret, content_type = TLSInnerPlaintext.split_pad(ret)
+        print(hexdump(bytes(ret)))
+        obj = TLSPlaintext(
+            type=content_type,
+            fragment=Handshake.from_bytes(ret)
+        )
+        print(obj)
+        tls_messages[obj.fragment.msg.__class__.__name__] = obj
 
 client_conn.close()
 
