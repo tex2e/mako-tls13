@@ -74,6 +74,12 @@ class OpaqueMeta(Type):
     def get_raw_bytes(self):
         return self.byte
 
+    def __eq__(self, other):
+        return self.byte == other.byte
+
+    def __len__(self):
+        return len(self.byte)
+
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
         return OpaqueFix(size_t)
@@ -100,12 +106,6 @@ def OpaqueFix(size):
         def from_fs(cls, fs):
             return OpaqueFix(fs.read(cls.size))
 
-        def __eq__(self, other):
-            return self.byte == other.byte
-
-        def __len__(self):
-            return len(self.byte)
-
         def __repr__(self):
             return 'Opaque[%d](%s)' % (OpaqueFix.size, repr(self.byte))
 
@@ -120,9 +120,8 @@ def OpaqueVar(size_t):
 
         def __init__(self, byte):
             assert isinstance(byte, (bytes, bytearray))
-            size_t = OpaqueVar.size_t
             self.byte = bytes(byte)
-            self.size_t = size_t
+            self.size_t = OpaqueVar.size_t
 
         def __bytes__(self):
             UintN = self.size_t
@@ -134,12 +133,6 @@ def OpaqueVar(size_t):
             length = int(size_t.from_fs(fs))
             byte   = fs.read(length)
             return OpaqueVar(byte)
-
-        def __eq__(self, other):
-            return self.byte == other.byte and self.size_t == other.size_t
-
-        def __len__(self):
-            return len(self.byte)
 
         def __repr__(self):
             return 'Opaque<%s>(%s)' % \
@@ -366,6 +359,9 @@ if __name__ == '__main__':
             self.assertEqual(bytes(o), b'\x00\x00\x00\x00\x01\x23\x45\x67')
             self.assertEqual(Opaque8.from_bytes(bytes(o)), o)
 
+            self.assertEqual(Opaque4.size, 4)
+            self.assertEqual(Opaque8.size, 8)
+
         def test_opaque_fix_invalid_args(self):
             # 4byteのOpaqueに対して、5byteのバイト列を渡す
             Opaque4 = Opaque(4)
@@ -374,16 +370,19 @@ if __name__ == '__main__':
 
         def test_opaque_var(self):
             # 可変長のOpaqueでデータ長を表す部分がUint8のとき
-            OpaqueVar1 = Opaque(Uint8)
-            o = OpaqueVar1(b'\x01\x23\x45\x67')
+            OpaqueUint8 = Opaque(Uint8)
+            o = OpaqueUint8(b'\x01\x23\x45\x67')
             self.assertEqual(bytes(o), b'\x04\x01\x23\x45\x67')
-            self.assertEqual(OpaqueVar1.from_bytes(bytes(o)), o)
+            self.assertEqual(OpaqueUint8.from_bytes(bytes(o)), o)
 
             # 可変長のOpaqueでデータ長を表す部分がUint16のとき
-            OpaqueVar2 = Opaque(Uint16)
-            o = OpaqueVar2(b'\x01\x23\x45\x67')
+            OpaqueUint16 = Opaque(Uint16)
+            o = OpaqueUint16(b'\x01\x23\x45\x67')
             self.assertEqual(bytes(o), b'\x00\x04\x01\x23\x45\x67')
-            self.assertEqual(OpaqueVar2.from_bytes(bytes(o)), o)
+            self.assertEqual(OpaqueUint16.from_bytes(bytes(o)), o)
+
+            self.assertEqual(OpaqueUint8.size_t, Uint8)
+            self.assertEqual(OpaqueUint16.size_t, Uint16)
 
 
         def test_list_eq_neq(self):
