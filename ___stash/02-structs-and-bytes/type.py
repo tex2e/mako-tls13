@@ -83,6 +83,8 @@ class OpaqueMeta(Type):
 def Opaque(size_t):
     if isinstance(size_t, int): # 引数がintのときは固定長
         return OpaqueFix(size_t)
+    if isinstance(size_t, type(lambda: None)): # 引数がラムダのときは実行時に決定する固定長
+        return OpaqueFix(size_t)
     if issubclass(size_t, Uint): # 引数がUintNのときは可変長
         return OpaqueVar(size_t)
     raise TypeError("size's type must be an int or Uint class.")
@@ -90,24 +92,33 @@ def Opaque(size_t):
 def OpaqueFix(size):
 
     # 固定長のOpaque (e.g. opaque string[16])
+    # ただし、外部の変数によってサイズが決まる場合もある (e.g. opaque string[Hash.length])
     class OpaqueFix(OpaqueMeta):
         size = 0
 
         def __init__(self, byte):
-            max_size = OpaqueFix.size
+            size = OpaqueFix.size
+            if callable(size): # ラムダのときは実行時に評価した値がサイズになる
+                size = int(size(self))
             assert isinstance(byte, (bytes, bytearray))
-            assert len(byte) <= max_size
-            self.byte = bytes(byte).rjust(max_size, b'\x00')
+            assert len(byte) <= size
+            self.byte = bytes(byte).rjust(size, b'\x00')
 
         def __bytes__(self):
             return self.byte
 
         @classmethod
-        def from_fs(cls, fs):
-            return OpaqueFix(fs.read(cls.size))
+        def from_fs(cls, fs, instance=None):
+            size = cls.size
+            if callable(size):
+                size = int(size(instance))
+            return OpaqueFix(fs.read(size))
 
         def __repr__(self):
-            return 'Opaque[%d](%s)' % (OpaqueFix.size, repr(self.byte))
+            size = OpaqueFix.size
+            if callable(size):
+                size = int(size(self))
+            return 'Opaque[%d](%s)' % (size, repr(self.byte))
 
     OpaqueFix.size = size
     return OpaqueFix
@@ -367,6 +378,32 @@ if __name__ == '__main__':
             Opaque4 = Opaque(4)
             with self.assertRaises(Exception) as cm:
                 o = Opaque4(b'\x01\x23\x45\x67\x89')
+
+        def test_opaque_fix_lambda_immediate_eval(self):
+            OpaqueUnk = Opaque(lambda self: 4)
+            o = OpaqueUnk(b'\x01\x23\x45\x67')
+            self.assertEqual(bytes(o), b'\x01\x23\x45\x67')
+            self.assertEqual(OpaqueUnk.from_bytes(bytes(o)), o)
+
+        def test_opaque_fix_lambda_lazy_eval(self):
+            OpaqueUnk = Opaque(lambda self: hash_len)
+            hash_len = 4
+            o = OpaqueUnk(b'\x01\x23\x45\x67')
+            self.assertEqual(bytes(o), b'\x01\x23\x45\x67')
+            self.assertEqual(OpaqueUnk.from_bytes(bytes(o)), o)
+
+        def test_opaque_fix_lambda_parent_length(self):
+            OpaqueUnk = Opaque(lambda self: self.parent.length)
+
+            import structmeta as meta
+            @meta.struct
+            class Test(meta.StructMeta):
+                length: Uint8
+                fragment: OpaqueUnk
+
+            t = Test(length=4, fragment=OpaqueUnk(b'\x01\x23\x45\x67'))
+            self.assertEqual(bytes(t), b'\x04\x01\x23\x45\x67')
+            self.assertEqual(Opaque4.from_bytes(bytes(t)), t)
 
         def test_opaque_var(self):
             # 可変長のOpaqueでデータ長を表す部分がUint8のとき
