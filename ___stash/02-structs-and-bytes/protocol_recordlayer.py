@@ -29,9 +29,10 @@ class TLSCiphertext(meta.StructMeta):
 class TLSInnerPlaintext:
     @staticmethod
     def append_pad(tlsplaintext):
-        length_of_padding = 16 - len(data) % 16 - 1
+        data = bytes(tlsplaintext.fragment) + bytes(tlsplaintext.type)
+        length_of_padding = 16 - len(data) % 16
         pad = b'\x00' * length_of_padding
-        return bytes(tlsplaintext.fragment) + bytes(tlsplaintext.type) + pad
+        return data + pad
 
     @staticmethod
     def split_pad(data):
