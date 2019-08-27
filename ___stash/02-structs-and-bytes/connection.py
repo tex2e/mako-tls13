@@ -13,7 +13,7 @@ class Connection:
         return self.socket.sendall(byte_str)
 
     def recv_msg(self):
-        return self.socket.recv(2**14)
+        return self.socket.recv(4096)
 
     def close(self):
         return self.socket.close()
