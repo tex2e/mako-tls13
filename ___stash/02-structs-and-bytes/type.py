@@ -162,6 +162,7 @@ def OpaqueVar(size_t):
 # よく使う型
 OpaqueUint8 = Opaque(Uint8)
 OpaqueUint16 = Opaque(Uint16)
+OpaqueLen = Opaque(lambda self: self.length)
 
 
 class ListMeta(Type):
