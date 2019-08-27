@@ -5,7 +5,7 @@ import os
 import io
 
 import connection
-from type import Uint8, Uint16
+from type import Uint8, Uint16, OpaqueUint16
 from disp import hexdump
 
 from protocol_types import ContentType, HandshakeType
@@ -21,7 +21,7 @@ from protocol_ext_signature import SignatureSchemeList, \
     SignatureSchemes, SignatureScheme
 from protocol_ext_keyshare import KeyShareHello, \
     KeyShareEntrys, KeyShareEntry, OpaqueUint16
-from protocol_authentication import Hash
+from protocol_authentication import Finished, Hash, OpaqueHash
 
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
@@ -83,8 +83,8 @@ client_hello = TLSPlaintext(
         )
     )
 )
-messages += bytes(client_hello.fragment)
 tls_messages['ClientHello'] = client_hello
+messages += bytes(client_hello.fragment)
 
 print(client_hello)
 print('[>>>] Send:')
@@ -102,8 +102,8 @@ stream = io.BytesIO(data)
 # Server Hello
 server_hello = TLSPlaintext.from_fs(stream)
 print(server_hello)
-messages += bytes(server_hello.fragment)
 tls_messages['ServerHello'] = server_hello
+messages += bytes(server_hello.fragment)
 
 cipher_suite = server_hello.fragment.msg.cipher_suite
 for ext in server_hello.fragment.msg.extensions:
@@ -125,7 +125,8 @@ secret_size = CipherSuite.get_hash_size(cipher_suite)
 secret = bytearray(secret_size)
 psk    = bytearray(secret_size)
 
-Hash.length = hkdf.hash_size(hash_name)
+hash_size = hkdf.hash_size(hash_name)
+Hash.length = hash_size
 
 # early secret
 secret = hkdf.HKDF_extract(secret, psk, hash_name)
@@ -143,39 +144,26 @@ server_hs_traffic_secret = \
 print('[+] c hs traffic:', client_hs_traffic_secret.hex())
 print('[+] s hs traffic:', server_hs_traffic_secret.hex())
 
-# master secret
-secret = hkdf.derive_secret(secret, b'derived', b'')
-secret = hkdf.HKDF_extract(secret, bytearray(secret_size), hash_name)
-print('[+] master secret:', secret.hex())
-
-client_application_traffic_secret = \
-    hkdf.derive_secret(secret, b'c ap traffic', messages, hash_name)
-server_application_traffic_secret = \
-    hkdf.derive_secret(secret, b's ap traffic', messages, hash_name)
-
-print('[+] c ap traffic:', client_application_traffic_secret.hex())
-print('[+] s ap traffic:', server_application_traffic_secret.hex())
-
-
 from crypto_chacha20poly1305 import Chacha20Poly1305
 
 if cipher_suite == CipherSuite.TLS_CHACHA20_POLY1305_SHA256:
     cipher_class = Chacha20Poly1305
     key_size   = cipher_class.key_size
     nonce_size = cipher_class.nonce_size
-
-server_write_key, server_write_iv = \
-    hkdf.gen_key_and_iv(server_hs_traffic_secret, key_size, nonce_size, hash_name)
-server_traffic_crypto = cipher_class(key=server_write_key, nonce=server_write_iv)
+    tag_size   = cipher_class.tag_size
 
 client_write_key, client_write_iv = \
     hkdf.gen_key_and_iv(client_hs_traffic_secret, key_size, nonce_size, hash_name)
 client_traffic_crypto = cipher_class(key=client_write_key, nonce=client_write_iv)
 
-print('[+] server_write_key:', server_write_key.hex())
-print('[+] server_write_iv:', server_write_iv.hex())
+server_write_key, server_write_iv = \
+    hkdf.gen_key_and_iv(server_hs_traffic_secret, key_size, nonce_size, hash_name)
+server_traffic_crypto = cipher_class(key=server_write_key, nonce=server_write_iv)
+
 print('[+] client_write_key:', client_write_key.hex())
 print('[+] client_write_iv:', client_write_iv.hex())
+print('[+] server_write_key:', server_write_key.hex())
+print('[+] server_write_iv:', server_write_iv.hex())
 
 while True:
     firstbyte = stream.read(1)
@@ -189,7 +177,7 @@ while True:
         # ChangeCipherSpec
         change_cipher_spec = TLSPlaintext.from_fs(stream)
         print(change_cipher_spec)
-        tls_messages['ChangeCipherSpec'] = change_cipher_spec
+        # tls_messages['ChangeCipherSpec'] = change_cipher_spec
 
     elif content_type in (ContentType.handshake, ContentType.application_data):
         # EncryptedExtensions, Certificate, CertificateVerify, Finished
@@ -208,6 +196,84 @@ while True:
         )
         print(obj)
         tls_messages[obj.fragment.msg.__class__.__name__] = obj
+        messages += bytes(obj.fragment)
+
+# print(tls_messages.keys())
+
+# --- Key Schedule ---
+
+# master secret
+secret = hkdf.derive_secret(secret, b'derived', b'')
+secret = hkdf.HKDF_extract(secret, bytearray(secret_size), hash_name)
+print('[+] master secret:', secret.hex())
+
+client_app_traffic_secret = \
+    hkdf.derive_secret(secret, b'c ap traffic', messages, hash_name)
+server_app_traffic_secret = \
+    hkdf.derive_secret(secret, b's ap traffic', messages, hash_name)
+
+print('[+] c ap traffic:', client_app_traffic_secret.hex())
+print('[+] s ap traffic:', server_app_traffic_secret.hex())
+
+client_app_write_key, client_app_write_iv = \
+    hkdf.gen_key_and_iv(client_app_traffic_secret, key_size, nonce_size, hash_name)
+server_app_write_key, server_app_write_iv = \
+    hkdf.gen_key_and_iv(server_app_traffic_secret, key_size, nonce_size, hash_name)
+
+client_app_data_crypto = cipher_class(
+        key=client_app_write_key, nonce=client_app_write_iv)
+server_app_data_crypto = cipher_class(
+        key=server_app_write_key, nonce=server_app_write_iv)
+
+print('[+] client_app_write_key:', client_app_write_key.hex())
+print('[+] client_app_write_iv:', client_app_write_iv.hex())
+print('[+] server_app_write_key:', server_app_write_key.hex())
+print('[+] server_app_write_iv:', server_app_write_iv.hex())
+
+
+
+# Finished
+finished_key = hkdf.HKDF_expand_label(client_hs_traffic_secret,
+                                      b'finished', b'', hash_size, hash_name)
+verify_data = hkdf.secure_HMAC(finished_key,
+                               hkdf.transcript_hash(messages, hash_name),
+                               hash_name)
+finished = TLSPlaintext(
+    type=ContentType.handshake,
+    fragment=Handshake(
+        msg_type=HandshakeType.finished,
+        msg=Finished(
+            verify_data=OpaqueHash(bytes(verify_data))
+        )
+    )
+)
+print(finished)
+print(hexdump(bytes(finished)))
+
+msg_pad = TLSInnerPlaintext.append_pad(finished)
+# print('>>>>>', len(msg_pad))
+aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
+# print('[+] aad:', aad.hex())
+encrypted_record = client_traffic_crypto.encrypt_and_tag(msg_pad, aad)
+# print('>>>>>', len(encrypted_record) - 16)
+tlsciphertext = TLSCiphertext(
+    encrypted_record=OpaqueUint16(bytes(encrypted_record))
+)
+
+print(tlsciphertext)
+print(hexdump(bytes(tlsciphertext)))
+
+client_conn.send_msg(bytes(tlsciphertext))
+
+
+print("-----")
+
+tlsciphertext = TLSCiphertext.from_fs(stream)
+print(tlsciphertext)
+
+# TODO: derive_secret
+# handshake_hash.update() # .fragment のバイト列を追加していく方法
+
 
 client_conn.close()
 
