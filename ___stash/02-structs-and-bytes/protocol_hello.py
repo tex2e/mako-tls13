@@ -1,6 +1,6 @@
 
 import os
-from type import Uint8, Uint16, Opaque, List
+from type import Uint16, Opaque, OpaqueUint8, List
 import structmeta as meta
 
 from protocol_ciphersuite import CipherSuites, CipherSuite
@@ -11,7 +11,6 @@ from protocol_extensions import Extension, Extensions
 
 ProtocolVersion = Uint16
 Random = Opaque(32)
-OpaqueUint8 = Opaque(size_t=Uint8)
 
 @meta.struct
 class ClientHello(meta.StructMeta):

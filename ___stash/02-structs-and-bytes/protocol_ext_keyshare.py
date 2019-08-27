@@ -1,11 +1,9 @@
 
-from type import Uint16, Opaque, List
+from type import Uint16, OpaqueUint16, List
 import structmeta as meta
 
 from protocol_types import HandshakeType
 from protocol_ext_supportedgroups import NamedGroup
-
-OpaqueUint16 = Opaque(Uint16)
 
 @meta.struct
 class KeyShareEntry(meta.StructMeta):

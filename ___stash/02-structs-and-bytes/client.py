@@ -311,28 +311,28 @@ print(hexdump(bytes(tlsciphertext)))
 
 client_conn.send_msg(bytes(tlsciphertext))
 
-# Recv html file
-
-data = client_conn.recv_msg()
-print('[<<<] Recv:')
-print(hexdump(data))
-
-stream = io.BytesIO(data)
-
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
+# # Recv html file
+#
+# data = client_conn.recv_msg()
+# print('[<<<] Recv:')
+# print(hexdump(data))
+#
+# stream = io.BytesIO(data)
+#
+# tlsciphertext = TLSCiphertext.from_fs(stream)
+# # print(tlsciphertext)
+# encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
+# aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
+# ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
+# # print(hexdump(bytes(ret)))
+# ret, content_type = TLSInnerPlaintext.split_pad(ret)
 # print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
-print(obj)
-print(hexdump(bytes(obj.fragment)))
+# obj = TLSPlaintext(
+#     type=content_type,
+#     fragment=Handshake.from_bytes(ret)
+# )
+# print(obj)
+# print(hexdump(bytes(obj.fragment)))
 
 
 client_conn.close()
