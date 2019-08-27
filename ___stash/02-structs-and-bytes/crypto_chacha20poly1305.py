@@ -174,6 +174,7 @@ class Cipher:
 class Chacha20Poly1305(Cipher):
     key_size = 32
     nonce_size = 12
+    tag_size = 16
 
     def __init__(self, key, nonce):
         self.key = key
@@ -182,8 +183,12 @@ class Chacha20Poly1305(Cipher):
 
     def encrypt_and_tag(self, plaintext, aad):
         nonce = self.get_nonce()
-        return chacha20_aead_encrypt(key=self.key, nonce=nonce,
-                                     plaintext=plaintext, aad=aad)
+        ciphertext, tag = chacha20_aead_encrypt(key=self.key, nonce=nonce,
+                                                plaintext=plaintext, aad=aad)
+        print('+ [+] cnt:', hex(self.seq_number))
+        print('+ [+] aad:', aad.hex())
+        print('+ [+] tag:', tag.hex())
+        return bytes(ciphertext + tag)
 
     def decrypt_and_verify(self, ciphertext, aad, mac=None):
         if mac is None:
@@ -195,8 +200,10 @@ class Chacha20Poly1305(Cipher):
                                                ciphertext=ciphertext, aad=aad)
 
         # print('+ [+] plaintext:\n', plaintext.hex())
-        # print('+ [+] mac:', mac.hex())
-        # print('+ [+] tag:', tag.hex())
+        print('+ [+] cnt:', hex(self.seq_number))
+        print('+ [+] aad:', aad.hex())
+        print('+ [+] mac:', mac.hex())
+        print('+ [+] tag:', tag.hex())
 
         if not compare_const_time(tag, mac):
             raise Exception('Poly1305: Bad Tag!')
