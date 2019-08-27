@@ -6,6 +6,7 @@ from protocol_types import HandshakeType
 from protocol_hello import ClientHello, ServerHello
 from protocol_extensions import EncryptedExtensions
 from protocol_authentication import Certificate, CertificateVerify, Finished
+from protocol_ticket import NewSessionTicket
 
 # ------------------------------------------------------------------------------
 # Handshake Layer
@@ -20,7 +21,8 @@ class Handshake(meta.StructMeta):
         HandshakeType.encrypted_extensions: EncryptedExtensions,
         HandshakeType.certificate: Certificate,
         HandshakeType.certificate_verify: CertificateVerify,
-        HandshakeType.finished: Finished
+        HandshakeType.finished: Finished,
+        HandshakeType.new_session_ticket: NewSessionTicket,
     })
 
 
