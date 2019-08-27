@@ -5,7 +5,7 @@ import os
 import io
 
 import connection
-from type import Uint8, Uint16, OpaqueUint16, OpaqueLen
+from type import Uint8, Uint16, OpaqueUint16, OpaqueLength
 from disp import hexdump
 
 from protocol_types import ContentType, HandshakeType
@@ -182,18 +182,7 @@ while True:
     elif content_type in (ContentType.handshake, ContentType.application_data):
         # EncryptedExtensions, Certificate, CertificateVerify, Finished
 
-        tlsciphertext = TLSCiphertext.from_fs(stream)
-        # print(tlsciphertext)
-        encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-        aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-        ret = server_traffic_crypto.decrypt_and_verify(encrypted_record, aad)
-        # print(hexdump(bytes(ret)))
-        ret, content_type = TLSInnerPlaintext.split_pad(ret)
-        print(hexdump(bytes(ret)))
-        obj = TLSPlaintext(
-            type=content_type,
-            fragment=Handshake.from_bytes(ret)
-        )
+        obj = TLSCiphertext.from_fs(stream).decrypt(server_traffic_crypto)
         print(obj)
         tls_messages[obj.fragment.msg.__class__.__name__] = obj
         messages += bytes(obj.fragment)
@@ -216,13 +205,7 @@ finished = TLSPlaintext(
 print(finished)
 print(hexdump(bytes(finished)))
 
-msg_pad = TLSInnerPlaintext.append_pad(finished)
-aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
-encrypted_record = client_traffic_crypto.encrypt_and_tag(msg_pad, aad)
-tlsciphertext = TLSCiphertext(
-    encrypted_record=OpaqueUint16(bytes(encrypted_record))
-)
-
+tlsciphertext = finished.encrypt(client_traffic_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
 
@@ -266,18 +249,8 @@ print(hexdump(data))
 
 stream = io.BytesIO(data)
 
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
-obj = TLSPlaintext(
-    type=content_type,
-    fragment=Handshake.from_bytes(ret)
-)
+# New Session Ticket
+obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
 print(obj)
 tls_messages[obj.fragment.msg.__class__.__name__] = obj
 messages += bytes(obj.fragment)
@@ -288,51 +261,43 @@ messages += bytes(obj.fragment)
 # import time
 # time.sleep(1)
 
+# ???: Server側からのFinished後に送るApplication Data(任意)の復号が含まれているから?
+server_app_data_crypto.get_nonce()
+
 print("=== Application Data ===")
 
 # GET / HTTP/1.1
 
 app_data = TLSPlaintext(
     type=ContentType.application_data,
-    fragment=OpaqueLen(b'GET / HTTP/1.1\n')
+    fragment=OpaqueLength(b'GET / HTTP/1.1\n')
 )
 print(app_data)
 print(hexdump(bytes(app_data)))
 
-msg_pad = TLSInnerPlaintext.append_pad(app_data)
-aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
-encrypted_record = client_app_data_crypto.encrypt_and_tag(msg_pad, aad)
-tlsciphertext = TLSCiphertext(
-    encrypted_record=OpaqueUint16(bytes(encrypted_record))
-)
-
+tlsciphertext = app_data.encrypt(client_app_data_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
 
 client_conn.send_msg(bytes(tlsciphertext))
 
-# # Recv html file
-#
-# data = client_conn.recv_msg()
-# print('[<<<] Recv:')
-# print(hexdump(data))
-#
-# stream = io.BytesIO(data)
-#
-# tlsciphertext = TLSCiphertext.from_fs(stream)
-# # print(tlsciphertext)
-# encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-# aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-# ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
-# # print(hexdump(bytes(ret)))
-# ret, content_type = TLSInnerPlaintext.split_pad(ret)
+# Recv html file
+
+data = client_conn.recv_msg()
+data = client_conn.recv_msg()
+print('[<<<] Recv:')
+print(hexdump(data))
+
+stream = io.BytesIO(data)
+
+tlsciphertext = TLSCiphertext.from_fs(stream)
+# print(tlsciphertext)
+encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
+aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
+ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
 # print(hexdump(bytes(ret)))
-# obj = TLSPlaintext(
-#     type=content_type,
-#     fragment=Handshake.from_bytes(ret)
-# )
-# print(obj)
-# print(hexdump(bytes(obj.fragment)))
+ret, content_type = TLSInnerPlaintext.split_pad(ret)
+print(hexdump(bytes(ret)))
 
 
 client_conn.close()
