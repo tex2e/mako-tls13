@@ -3,6 +3,8 @@
 
 import os
 import io
+import threading
+import queue
 
 import connection
 from type import Uint8, Uint16, OpaqueUint16, OpaqueLength
@@ -91,6 +93,7 @@ print('[>>>] Send:')
 print(hexdump(bytes(client_hello)))
 
 client_conn = connection.ClientConnection('localhost', 50007)
+# client_conn = connection.ClientConnection('enabled.tls13.com', 443)
 client_conn.send_msg(bytes(client_hello))
 
 buf = None
@@ -167,6 +170,9 @@ print('[+] client_write_iv:', client_write_iv.hex())
 print('[+] server_write_key:', server_write_key.hex())
 print('[+] server_write_iv:', server_write_iv.hex())
 
+# TODO: 現在のstreamに加えて、他にデータが送られていないか確認した後に、以下のループに入ること
+# Finished を受信したことを確認してから以下のループを抜けること
+
 while True:
     firstbyte = stream.read(1)
     if firstbyte == b'':
@@ -188,6 +194,9 @@ while True:
         print(obj)
         tls_messages[obj.fragment.msg.__class__.__name__] = obj
         messages += bytes(obj.fragment)
+
+        # if obj.fragment.msg.__class__.__name__ == 'Finished':
+        #     break
 
 # Finished
 finished_key = hkdf.HKDF_expand_label(client_hs_traffic_secret,
@@ -243,34 +252,69 @@ print('[+] client_app_write_iv:', client_app_write_iv.hex())
 print('[+] server_app_write_key:', server_app_write_key.hex())
 print('[+] server_app_write_iv:', server_app_write_iv.hex())
 
+loop_keyboard_input = True
+
+def read_keyboard_input(inputQueue):
+    print('Ready for keyboard input:')
+    while loop_keyboard_input:
+        input_str = input()
+        inputQueue.put(input_str + "\n")
+
+inputQueue = queue.Queue()
+inputThread = threading.Thread(target=read_keyboard_input,
+                               args=(inputQueue,), daemon=True)
+inputThread.start()
+
 print("=== Application Data ===")
-while True:
-
-    buf = None
-    while not buf:
-        buf = client_conn.recv_msg()
-    print('[<<<] Recv:')
-    print(hexdump(buf))
-
-    stream = io.BytesIO(buf)
-
+try:
     while True:
-        firstbyte = stream.read(1)
-        if firstbyte == b'':
-            break
-        stream.seek(-1, io.SEEK_CUR)
 
-        obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
-        print(obj)
+        buf = None
+        while not buf:
+            buf = client_conn.recv_msg()
 
-        if isinstance(obj.fragment, Handshake):
-            # New Session Ticket
-            print('[+] New Session Ticket arrived!')
-            tls_messages[obj.fragment.msg.__class__.__name__] = obj
+            # 受信待機時にクライアント側から入力があれば送信する
+            if inputQueue.qsize() > 0:
+                input_str = inputQueue.get()
+                app_data = TLSPlaintext(
+                    type=ContentType.application_data,
+                    fragment=OpaqueLength(input_str.encode())
+                )
+                print(hexdump(bytes(app_data)))
 
-        else:
-            print(bytes(obj.fragment))
+                tlsciphertext = app_data.encrypt(client_app_data_crypto)
+                print(tlsciphertext)
+                print('[>>>] Send:')
+                print(hexdump(bytes(tlsciphertext)))
 
+                client_conn.send_msg(bytes(tlsciphertext))
+
+        print('[<<<] Recv:')
+        print(hexdump(buf))
+
+        stream = io.BytesIO(buf)
+
+        while True:
+            firstbyte = stream.read(1)
+            if firstbyte == b'':
+                break
+            stream.seek(-1, io.SEEK_CUR)
+
+            obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
+            print(obj)
+
+            if isinstance(obj.fragment, Handshake):
+                # New Session Ticket
+                print('[+] New Session Ticket arrived!')
+                tls_messages[obj.fragment.msg.__class__.__name__] = obj
+
+            else:
+                print(bytes(obj.fragment))
+
+except KeyboardInterrupt:
+    print('\nBye!')
+
+loop_keyboard_input = False
 
 client_conn.close()
 
