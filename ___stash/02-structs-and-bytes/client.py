@@ -243,71 +243,33 @@ print('[+] client_app_write_iv:', client_app_write_iv.hex())
 print('[+] server_app_write_key:', server_app_write_key.hex())
 print('[+] server_app_write_iv:', server_app_write_iv.hex())
 
-buf = None
-while not buf:
-    buf = client_conn.recv_msg()
-print('[<<<] Recv:')
-print(hexdump(buf))
-
-stream = io.BytesIO(buf)
-
-# New Session Ticket
-print('--- (1) ------------------------------------------------------------')
-obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
-print(obj)
-tls_messages[obj.fragment.msg.__class__.__name__] = obj
-messages += bytes(obj.fragment)
-
-# TODO: derive_secret
-# handshake_hash.update() # .fragment のバイト列を追加していく方法
-
-# import time
-# time.sleep(1)
-
 print("=== Application Data ===")
+while True:
 
-# GET / HTTP/1.1
+    buf = None
+    while not buf:
+        buf = client_conn.recv_msg()
+    print('[<<<] Recv:')
+    print(hexdump(buf))
 
-app_data = TLSPlaintext(
-    type=ContentType.application_data,
-    fragment=OpaqueLength(b'GET / HTTP/1.1\n')
-)
-print(app_data)
-print(hexdump(bytes(app_data)))
+    stream = io.BytesIO(buf)
 
-tlsciphertext = app_data.encrypt(client_app_data_crypto)
-print(tlsciphertext)
-print(hexdump(bytes(tlsciphertext)))
+    while True:
+        firstbyte = stream.read(1)
+        if firstbyte == b'':
+            break
+        stream.seek(-1, io.SEEK_CUR)
 
-client_conn.send_msg(bytes(tlsciphertext))
+        obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
+        print(obj)
 
-# Recv html file
+        if isinstance(obj.fragment, Handshake):
+            # New Session Ticket
+            print('[+] New Session Ticket arrived!')
+            tls_messages[obj.fragment.msg.__class__.__name__] = obj
 
-# data = client_conn.recv_msg()
-buf = None
-while not buf:
-    buf = client_conn.recv_msg()
-print('[<<<] Recv:')
-print(hexdump(buf))
-
-stream = io.BytesIO(buf)
-
-# OpanSSLのTLS 1.3サーバはNewSessionTicketを2回送るという謎の挙動をするので
-# New Session Ticket
-print('--- (2) ------------------------------------------------------------')
-obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
-print(obj)
-
-buf = None
-while not buf:
-    buf = client_conn.recv_msg()
-print('[<<<] Recv:')
-print(hexdump(buf))
-
-stream = io.BytesIO(buf)
-
-obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
-print(obj.fragment)
+        else:
+            print(bytes(obj.fragment))
 
 
 client_conn.close()
