@@ -93,11 +93,13 @@ print(hexdump(bytes(client_hello)))
 client_conn = connection.ClientConnection('localhost', 50007)
 client_conn.send_msg(bytes(client_hello))
 
-data = client_conn.recv_msg()
+buf = None
+while not buf:
+    buf = client_conn.recv_msg()
 print('[<<<] Recv:')
-print(hexdump(data))
+print(hexdump(buf))
 
-stream = io.BytesIO(data)
+stream = io.BytesIO(buf)
 
 # Server Hello
 server_hello = TLSPlaintext.from_fs(stream)
@@ -241,15 +243,16 @@ print('[+] client_app_write_iv:', client_app_write_iv.hex())
 print('[+] server_app_write_key:', server_app_write_key.hex())
 print('[+] server_app_write_iv:', server_app_write_iv.hex())
 
-
-
-data = client_conn.recv_msg()
+buf = None
+while not buf:
+    buf = client_conn.recv_msg()
 print('[<<<] Recv:')
-print(hexdump(data))
+print(hexdump(buf))
 
-stream = io.BytesIO(data)
+stream = io.BytesIO(buf)
 
 # New Session Ticket
+print('--- (1) ------------------------------------------------------------')
 obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
 print(obj)
 tls_messages[obj.fragment.msg.__class__.__name__] = obj
@@ -260,9 +263,6 @@ messages += bytes(obj.fragment)
 
 # import time
 # time.sleep(1)
-
-# ???: Server側からのFinished後に送るApplication Data(任意)の復号が含まれているから?
-server_app_data_crypto.get_nonce()
 
 print("=== Application Data ===")
 
@@ -283,12 +283,28 @@ client_conn.send_msg(bytes(tlsciphertext))
 
 # Recv html file
 
-data = client_conn.recv_msg()
-data = client_conn.recv_msg()
+# data = client_conn.recv_msg()
+buf = None
+while not buf:
+    buf = client_conn.recv_msg()
 print('[<<<] Recv:')
-print(hexdump(data))
+print(hexdump(buf))
 
-stream = io.BytesIO(data)
+stream = io.BytesIO(buf)
+
+# OpanSSLのTLS 1.3サーバはNewSessionTicketを2回送るという謎の挙動をするので
+# New Session Ticket
+print('--- (2) ------------------------------------------------------------')
+obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
+print(obj)
+
+buf = None
+while not buf:
+    buf = client_conn.recv_msg()
+print('[<<<] Recv:')
+print(hexdump(buf))
+
+stream = io.BytesIO(buf)
 
 tlsciphertext = TLSCiphertext.from_fs(stream)
 # print(tlsciphertext)
