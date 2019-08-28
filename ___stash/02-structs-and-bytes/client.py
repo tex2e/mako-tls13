@@ -173,30 +173,44 @@ print('[+] server_write_iv:', server_write_iv.hex())
 # TODO: 現在のstreamに加えて、他にデータが送られていないか確認した後に、以下のループに入ること
 # Finished を受信したことを確認してから以下のループを抜けること
 
+is_recv_finished = False
+
 while True:
-    firstbyte = stream.read(1)
-    if firstbyte == b'':
+    # buf = None
+    # while not buf:
+    #     buf = client_conn.recv_msg()
+    #
+    # stream = io.BytesIO(buf)
+
+    while True:
+        firstbyte = stream.read(1)
+        if firstbyte == b'':
+            continue
+        stream.seek(-1, io.SEEK_CUR)
+
+        content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
+
+        if content_type == ContentType.change_cipher_spec:
+            # ChangeCipherSpec
+            change_cipher_spec = TLSPlaintext.from_fs(stream)
+            print(change_cipher_spec)
+            # tls_messages['ChangeCipherSpec'] = change_cipher_spec
+
+        elif content_type in (ContentType.handshake, ContentType.application_data):
+            # EncryptedExtensions, Certificate, CertificateVerify, Finished
+
+            obj = TLSCiphertext.from_fs(stream).decrypt(server_traffic_crypto)
+            print(obj)
+            tls_messages[obj.fragment.msg.__class__.__name__] = obj
+            messages += bytes(obj.fragment)
+
+            if obj.fragment.msg.__class__.__name__ == 'Finished':
+                print('[*] Received Finished!')
+                is_recv_finished = True
+                break
+
+    if is_recv_finished:
         break
-    stream.seek(-1, io.SEEK_CUR)
-
-    content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
-
-    if content_type == ContentType.change_cipher_spec:
-        # ChangeCipherSpec
-        change_cipher_spec = TLSPlaintext.from_fs(stream)
-        print(change_cipher_spec)
-        # tls_messages['ChangeCipherSpec'] = change_cipher_spec
-
-    elif content_type in (ContentType.handshake, ContentType.application_data):
-        # EncryptedExtensions, Certificate, CertificateVerify, Finished
-
-        obj = TLSCiphertext.from_fs(stream).decrypt(server_traffic_crypto)
-        print(obj)
-        tls_messages[obj.fragment.msg.__class__.__name__] = obj
-        messages += bytes(obj.fragment)
-
-        # if obj.fragment.msg.__class__.__name__ == 'Finished':
-        #     break
 
 # Finished
 finished_key = hkdf.HKDF_expand_label(client_hs_traffic_secret,
