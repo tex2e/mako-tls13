@@ -4,6 +4,7 @@ import structmeta as meta
 
 from protocol_types import ContentType
 from protocol_handshake import Handshake
+from protocol_alert import Alert
 
 # ------------------------------------------------------------------------------
 # Record Layer
@@ -18,6 +19,7 @@ class TLSPlaintext(meta.StructMeta):
     fragment: meta.Select('type', cases={
         ContentType.handshake: Handshake,
         ContentType.change_cipher_spec: OpaqueLength,
+        ContentType.alert: Alert,
     })
 
     def encrypt(self, cipher_instance):
