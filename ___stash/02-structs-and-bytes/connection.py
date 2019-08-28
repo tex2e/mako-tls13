@@ -8,15 +8,19 @@ class Connection:
         self.host = host
         self.port = port
         self.init_socket()
+        self.socket.setblocking(False)
+        self.fs = self.socket.makefile('rwb', buffering=0)
 
-    def send_msg(self, byte_str):
-        return self.socket.sendall(byte_str)
+    def send_msg(self, b):
+        # return self.socket.sendall(b)
+        return self.fs.write(b)
 
     def recv_msg(self):
-        return self.socket.recv(4096)
+        # return self.socket.recv(4096)
+        return self.fs.readall()
 
     def close(self):
-        return self.socket.close()
+        return self.fs.close()
 
 class ClientConnection(Connection):
     def init_socket(self):
