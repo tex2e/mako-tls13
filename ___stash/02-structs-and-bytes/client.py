@@ -306,14 +306,8 @@ print(hexdump(buf))
 
 stream = io.BytesIO(buf)
 
-tlsciphertext = TLSCiphertext.from_fs(stream)
-# print(tlsciphertext)
-encrypted_record = tlsciphertext.encrypted_record.get_raw_bytes()
-aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-ret = server_app_data_crypto.decrypt_and_verify(encrypted_record, aad)
-# print(hexdump(bytes(ret)))
-ret, content_type = TLSInnerPlaintext.split_pad(ret)
-print(hexdump(bytes(ret)))
+obj = TLSCiphertext.from_fs(stream).decrypt(server_app_data_crypto)
+print(obj.fragment)
 
 
 client_conn.close()

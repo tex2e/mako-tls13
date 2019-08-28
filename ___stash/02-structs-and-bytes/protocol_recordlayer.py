@@ -3,7 +3,7 @@ from type import Uint8, Uint16, Opaque, OpaqueUint16, OpaqueLength
 import structmeta as meta
 
 from protocol_types import ContentType
-from protocol_handshake import Handshake
+from protocol_handshake import Handshake, HandshakeType
 from protocol_alert import Alert
 
 # ------------------------------------------------------------------------------
@@ -40,13 +40,32 @@ class TLSCiphertext(meta.StructMeta):
     def decrypt(self, cipher_instance):
         encrypted_record = self.encrypted_record.get_raw_bytes()
         aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
-        ret = cipher_instance.decrypt_and_verify(encrypted_record, aad)
-        ret, content_type = TLSInnerPlaintext.split_pad(ret)
-        # print(hexdump(bytes(ret)))
+        plaindata = cipher_instance.decrypt_and_verify(encrypted_record, aad)
+        plaindata, content_type = TLSInnerPlaintext.split_pad(plaindata)
+        # print(hexdump(bytes(plaindata)))
+        if content_type == ContentType.application_data:
+            return self._decrypt_app_data(plaindata, content_type)
+
         return TLSPlaintext(
             type=content_type,
-            fragment=Handshake.from_bytes(ret)
+            fragment=Handshake.from_bytes(plaindata)
         )
+
+    # Application Data を受信したとき
+    def _decrypt_app_data(self, plaindata, content_type):
+        # NewSessionTicketを受け取った場合
+        if plaindata[:2] == bytes(HandshakeType.new_session_ticket) + b'\x00':
+            return TLSPlaintext(
+                type=content_type,
+                fragment=Handshake.from_bytes(plaindata)
+            )
+        # それ以外は通信データ
+        else:
+            return TLSPlaintext(
+                type=content_type,
+                length=len(plaindata),
+                fragment=OpaqueLength(bytes(plaindata))
+            )
 
 class TLSInnerPlaintext:
     @staticmethod
