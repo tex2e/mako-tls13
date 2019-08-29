@@ -4,9 +4,28 @@ from protocol_ciphersuite import CipherSuite
 import crypto_hkdf as hkdf
 
 class TLSContext:
-    def set_key_exchange(self, client_hello, server_hello, dhkex_class, secret_key):
-        self.client_hello = client_hello
-        self.server_hello = server_hello
+    def __init__(self):
+        # TLSのやりとりで送信されてきたメッセージを格納する。
+        # 辞書のkeyはクラス名 (ClientHelloなど) 、valueはTLSPlaintextクラスのインスタンス
+        self.tls_records = {}
+        # Handshakeレコードのrecord.fragment部分のバイト列を結合したもの
+        self.tls_messages = b''
+
+    def append_handshake_record(self, tlsplaintext):
+        name = tlsplaintext.fragment.msg.__class__.__name__
+        self.tls_records[name] = tlsplaintext
+        self.tls_messages += bytes(tlsplaintext.fragment)
+
+    def append_appdata_record(self, tlsplaintext):
+        name = tlsplaintext.fragment.msg.__class__.__name__
+        self.tls_records[name] = tlsplaintext
+
+    def get_tls_messages(self):
+        return self.tls_messages
+
+    def set_key_exchange(self, dhkex_class, secret_key):
+        self.client_hello = self.tls_records.get('ClientHello')
+        self.server_hello = self.tls_records.get('ServerHello')
         self.dhkex_class = dhkex_class # TODO: something like list or ...
         self.secret_key = secret_key   # TODO:
 
@@ -31,7 +50,8 @@ class TLSContext:
         self.secret_size = CipherSuite.get_hash_size(self.cipher_suite)
         self.hash_size = hkdf.hash_size(self.hash_name)
 
-    def key_schedule_in_handshake(self, messages):
+    def key_schedule_in_handshake(self):
+        messages = self.get_tls_messages()
         secret = bytearray(self.secret_size)
         psk    = bytearray(self.secret_size)
 
@@ -70,7 +90,8 @@ class TLSContext:
         self.server_traffic_crypto = self.cipher_class(
             key=server_write_key, nonce=server_write_iv)
 
-    def key_schedule_in_app_data(self, messages):
+    def key_schedule_in_app_data(self):
+        messages = self.get_tls_messages()
         secret = self.handshake_secret
         label = bytearray(self.secret_size)
 

@@ -29,8 +29,7 @@ from protocol_authentication import Finished, Hash, OpaqueHash
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
 
-messages = bytearray(0)
-tls_messages = {}
+ctx = TLSContext()
 
 dhkex_class = x25519
 
@@ -88,8 +87,7 @@ client_hello = TLSPlaintext(
         )
     )
 )
-tls_messages['ClientHello'] = client_hello
-messages += bytes(client_hello.fragment)
+ctx.append_handshake_record(client_hello)
 
 print(client_hello)
 print('[>>>] Send:')
@@ -110,17 +108,15 @@ stream = io.BytesIO(buf)
 # Server Hello
 server_hello = TLSPlaintext.from_fs(stream)
 print(server_hello)
-tls_messages['ServerHello'] = server_hello
-messages += bytes(server_hello.fragment)
+ctx.append_handshake_record(server_hello)
 
-ctx = TLSContext()
-ctx.set_key_exchange(client_hello, server_hello, dhkex_class, secret_key)
+ctx.set_key_exchange(dhkex_class, secret_key)
 Hash.length = ctx.hash_size
 
 print('[+] shared key:', ctx.shared_key.hex())
 
 # Key Schedule
-ctx.key_schedule_in_handshake(messages)
+ctx.key_schedule_in_handshake()
 
 # TODO: 現在のstreamに加えて、他にデータが送られていないか確認した後に、以下のループに入ること
 # Finished を受信したことを確認してから以下のループを抜けること
@@ -147,15 +143,13 @@ while True:
             # ChangeCipherSpec
             change_cipher_spec = TLSPlaintext.from_fs(stream)
             print(change_cipher_spec)
-            # tls_messages['ChangeCipherSpec'] = change_cipher_spec
 
         elif content_type in (ContentType.handshake, ContentType.application_data):
             # EncryptedExtensions, Certificate, CertificateVerify, Finished
 
             obj = TLSCiphertext.from_fs(stream).decrypt(ctx.server_traffic_crypto)
             print(obj)
-            tls_messages[obj.fragment.msg.__class__.__name__] = obj
-            messages += bytes(obj.fragment)
+            ctx.append_handshake_record(obj)
 
             if obj.fragment.msg.__class__.__name__ == 'Finished':
                 print('[*] Received Finished!')
@@ -166,6 +160,7 @@ while True:
         break
 
 # Finished
+messages = ctx.get_tls_messages()
 finished_key = hkdf.HKDF_expand_label(
     ctx.client_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
 verify_data = hkdf.secure_HMAC(
@@ -189,7 +184,7 @@ print(hexdump(bytes(tlsciphertext)))
 client_conn.send_msg(bytes(tlsciphertext))
 
 # Key Schedule
-ctx.key_schedule_in_app_data(messages)
+ctx.key_schedule_in_app_data()
 
 loop_keyboard_input = True
 
@@ -246,7 +241,7 @@ try:
             if isinstance(obj.fragment, Handshake):
                 # New Session Ticket
                 print('[+] New Session Ticket arrived!')
-                tls_messages[obj.fragment.msg.__class__.__name__] = obj
+                ctx.append_appdata_record(obj)
 
             else:
                 print(bytes(obj.fragment))
