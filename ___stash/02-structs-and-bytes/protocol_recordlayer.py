@@ -63,7 +63,7 @@ class TLSCiphertext(meta.StructMeta):
 
         return TLSPlaintext(
             type=content_type,
-            fragment=Handshake.from_bytes(plaindata)
+            fragment=OpaqueLength(bytes(plaindata))
         )
 
     # Application Data を受信したとき
@@ -72,7 +72,7 @@ class TLSCiphertext(meta.StructMeta):
         if plaindata[:2] == bytes(HandshakeType.new_session_ticket) + b'\x00':
             return TLSPlaintext(
                 type=content_type,
-                fragment=Handshake.from_bytes(plaindata)
+                fragment=OpaqueLength(bytes(plaindata))
             )
         # それ以外は通信データ
         else:

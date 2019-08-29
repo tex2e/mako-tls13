@@ -36,72 +36,84 @@ dhkex_class = x25519
 secret_key = os.urandom(32)
 public_key = dhkex_class(secret_key)
 
-client_hello = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=Handshake(
-        msg_type=HandshakeType.client_hello,
-        msg=ClientHello(
-            cipher_suites=CipherSuites([
-                CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
-                CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV
-            ]),
-            extensions=Extensions([
-                Extension(
-                    extension_type=ExtensionType.supported_versions,
-                    extension_data=SupportedVersions(
-                        versions=ProtocolVersions([
-                            ProtocolVersion.TLS13
-                        ])
-                    )
-                ),
-                Extension(
-                    extension_type=ExtensionType.supported_groups,
-                    extension_data=NamedGroupList(
-                        named_group_list=NamedGroups([
-                            NamedGroup.x25519
-                        ])
-                    )
-                ),
-                Extension(
-                    extension_type=ExtensionType.signature_algorithms,
-                    extension_data=SignatureSchemeList(
-                        supported_signature_algorithms=SignatureSchemes([
-                            SignatureScheme.rsa_pss_rsae_sha256,
-                            SignatureScheme.rsa_pss_rsae_sha384,
-                            SignatureScheme.rsa_pss_rsae_sha512,
-                        ])
-                    )
-                ),
-                Extension(
-                    extension_type=ExtensionType.key_share,
-                    extension_data=KeyShareHello(
-                        shares=KeyShareEntrys([
-                            KeyShareEntry(
-                                group=NamedGroup.x25519,
-                                key_exchange=OpaqueUint16(public_key)
-                            )
-                        ])
-                    )
+client_hello = Handshake(
+    msg_type=HandshakeType.client_hello,
+    msg=ClientHello(
+        cipher_suites=CipherSuites([
+            CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+            CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+        ]),
+        extensions=Extensions([
+            Extension(
+                extension_type=ExtensionType.supported_versions,
+                extension_data=SupportedVersions(
+                    versions=ProtocolVersions([
+                        ProtocolVersion.TLS13
+                    ])
                 )
-            ])
-        )
+            ),
+            Extension(
+                extension_type=ExtensionType.supported_groups,
+                extension_data=NamedGroupList(
+                    named_group_list=NamedGroups([
+                        NamedGroup.x25519
+                    ])
+                )
+            ),
+            Extension(
+                extension_type=ExtensionType.signature_algorithms,
+                extension_data=SignatureSchemeList(
+                    supported_signature_algorithms=SignatureSchemes([
+                        SignatureScheme.rsa_pss_rsae_sha256,
+                        SignatureScheme.rsa_pss_rsae_sha384,
+                        SignatureScheme.rsa_pss_rsae_sha512,
+                    ])
+                )
+            ),
+            Extension(
+                extension_type=ExtensionType.key_share,
+                extension_data=KeyShareHello(
+                    shares=KeyShareEntrys([
+                        KeyShareEntry(
+                            group=NamedGroup.x25519,
+                            key_exchange=OpaqueUint16(public_key)
+                        )
+                    ])
+                )
+            )
+        ])
     )
+)
+
+tlsplaintext = TLSPlaintext(
+    type=ContentType.handshake,
+    fragment=OpaqueLength(bytes(client_hello))
 )
 ctx.append_handshake_record(client_hello)
 
-print(client_hello)
+print(tlsplaintext)
 print('[>>>] Send:')
-print(hexdump(bytes(client_hello)))
+print(hexdump(bytes(tlsplaintext)))
 
 client_conn = connection.ClientConnection('localhost', 50007)
 # client_conn = connection.ClientConnection('enabled.tls13.com', 443)
-client_conn.send_msg(bytes(client_hello))
+# '''
+# GET / HTTP/1.1
+# Host: enabled.tls13.com
+# '''
+client_conn.send_msg(bytes(tlsplaintext))
 
 is_recv_serverhello = False
 is_recv_finished = False
 
 import time
-time.sleep(1)
+time.sleep(0.1)
+
+# TODO: バイト列の受信中に構造体への変換が始まるのを回避する
+# 1. まず TLSPlaintext の Header を socket.recv(5) で受信する
+# 2. Header にある長さをもとに、socket.recv(Header.length) で受信する
+# 3. 読み出したバイト列を Handshake メッセージに変換する
+# 4. 以上の処理を実装できたら上の time.sleep(0.1) を削除する
 
 print("=== Handshake ===")
 while True:
@@ -124,9 +136,11 @@ while True:
 
         if not is_recv_serverhello:
             # ServerHello
-            server_hello = TLSPlaintext.from_fs(stream)
-            print(server_hello)
-            ctx.append_handshake_record(server_hello)
+            tlsplaintext = TLSPlaintext.from_fs(stream)
+            for msg in tlsplaintext.get_messages():
+                print('[*] ServerHello!')
+                print(msg)
+                ctx.append_handshake_record(msg)
 
             ctx.set_key_exchange(dhkex_class, secret_key)
             Hash.length = ctx.hash_size
@@ -147,38 +161,42 @@ while True:
             # EncryptedExtensions, Certificate, CertificateVerify, Finished
             print("Got!")
 
-            obj = TLSCiphertext.from_fs(stream).decrypt(ctx.server_traffic_crypto)
-            print('[*]', obj.fragment.msg.__class__.__name__)
-            print(obj)
-            ctx.append_handshake_record(obj)
+            tlsplaintext = TLSCiphertext.from_fs(stream) \
+                                        .decrypt(ctx.server_traffic_crypto)
+            # print(tlsplaintext)
+            for msg in tlsplaintext.get_messages():
+                ctx.append_handshake_record(msg)
+                print(msg)
 
-            if obj.fragment.msg.__class__.__name__ == 'Finished':
-                print('[*] Received Finished!')
-                is_recv_finished = True
-                break
+                if msg.msg_type == HandshakeType.finished:
+                    print('[*] Received Finished!')
+                    is_recv_finished = True
+                    break
 
     if is_recv_finished:
         break
 
 # Finished
-messages = ctx.get_tls_messages()
+messages = ctx.get_messages()
 finished_key = hkdf.HKDF_expand_label(
     ctx.client_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
 verify_data = hkdf.secure_HMAC(
     finished_key, hkdf.transcript_hash(messages, ctx.hash_name), ctx.hash_name)
-finished = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=Handshake(
-        msg_type=HandshakeType.finished,
-        msg=Finished(
-            verify_data=OpaqueHash(bytes(verify_data))
-        )
+
+finished = Handshake(
+    msg_type=HandshakeType.finished,
+    msg=Finished(
+        verify_data=OpaqueHash(bytes(verify_data))
     )
 )
 print(finished)
-print(hexdump(bytes(finished)))
 
-tlsciphertext = finished.encrypt(ctx.client_traffic_crypto)
+tlsplaintext = TLSPlaintext(
+    type=ContentType.handshake,
+    fragment=OpaqueLength(bytes(finished))
+)
+
+tlsciphertext = tlsplaintext.encrypt(ctx.client_traffic_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
 

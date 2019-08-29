@@ -11,16 +11,16 @@ class TLSContext:
         # Handshakeレコードのrecord.fragment部分のバイト列を結合したもの
         self.tls_messages = b''
 
-    def append_handshake_record(self, tlsplaintext):
-        name = tlsplaintext.fragment.msg.__class__.__name__
-        self.tls_records[name] = tlsplaintext
-        self.tls_messages += bytes(tlsplaintext.fragment)
+    def append_handshake_record(self, handshake):
+        name = handshake.msg.__class__.__name__
+        self.tls_records[name] = handshake
+        self.tls_messages += bytes(handshake)
 
-    def append_appdata_record(self, tlsplaintext):
-        name = tlsplaintext.fragment.msg.__class__.__name__
-        self.tls_records[name] = tlsplaintext
+    def append_appdata_record(self, handshake):
+        name = handshake.msg.__class__.__name__
+        self.tls_records[name] = handshake
 
-    def get_tls_messages(self):
+    def get_messages(self):
         return self.tls_messages
 
     def set_key_exchange(self, dhkex_class, secret_key):
@@ -32,9 +32,9 @@ class TLSContext:
         self.derive_negotiated_params()
 
     def derive_negotiated_params(self):
-        self.cipher_suite = self.server_hello.fragment.msg.cipher_suite
+        self.cipher_suite = self.server_hello.msg.cipher_suite
 
-        for ext in self.server_hello.fragment.msg.extensions:
+        for ext in self.server_hello.msg.extensions:
             if ext.extension_type == ExtensionType.key_share:
                 server_share = ext.extension_data.shares
 
@@ -51,7 +51,7 @@ class TLSContext:
         self.hash_size = hkdf.hash_size(self.hash_name)
 
     def key_schedule_in_handshake(self):
-        messages = self.get_tls_messages()
+        messages = self.get_messages()
         secret = bytearray(self.secret_size)
         psk    = bytearray(self.secret_size)
 
@@ -91,7 +91,7 @@ class TLSContext:
             key=server_write_key, nonce=server_write_iv)
 
     def key_schedule_in_app_data(self):
-        messages = self.get_tls_messages()
+        messages = self.get_messages()
         secret = self.handshake_secret
         label = bytearray(self.secret_size)
 
