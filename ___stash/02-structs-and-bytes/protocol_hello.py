@@ -1,6 +1,6 @@
 
 import os
-from type import Uint16, Opaque, OpaqueUint8, List
+from type import Uint8, Uint16, Opaque, OpaqueUint8, List
 import structmeta as meta
 
 from protocol_ciphersuite import CipherSuites, CipherSuite
@@ -11,6 +11,7 @@ from protocol_extensions import Extension, Extensions
 
 ProtocolVersion = Uint16
 Random = Opaque(32)
+Opaque1 = Opaque(1)
 
 @meta.struct
 class ClientHello(meta.StructMeta):
@@ -27,7 +28,7 @@ class ServerHello(meta.StructMeta):
     random: Random = lambda self: Random(os.urandom(32))
     legacy_session_id_echo: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
     cipher_suite: CipherSuite
-    legacy_compression_methods: OpaqueUint8 = OpaqueUint8(b'\x00')
+    legacy_compression_method: Opaque1 = Opaque1(b'\x00')
     extensions: Extensions
 
 
@@ -67,7 +68,7 @@ if __name__ == '__main__':
                 random=Random(bytes.fromhex('AA' * 32)),
                 legacy_session_id_echo=OpaqueUint8(bytes.fromhex('BB' * 32)),
                 cipher_suite=CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
-                legacy_compression_methods=OpaqueUint8(b'\x00'),
+                legacy_compression_method=Opaque1(b'\x00'),
                 extensions=Extensions([]),
             )
 
@@ -76,7 +77,7 @@ if __name__ == '__main__':
                 'AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA'
                 'AA AA 20 BB BB BB BB BB  BB BB BB BB BB BB BB BB'
                 'BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB'
-                'BB BB BB 13 03 01 00 00  00                     ')
+                'BB BB BB 13 03 00 00 00                         ')
 
             self.assertEqual(bytes(sh), expected)
             self.assertEqual(ServerHello.from_bytes(bytes(sh)), sh)
