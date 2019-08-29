@@ -97,57 +97,58 @@ client_conn = connection.ClientConnection('localhost', 50007)
 # client_conn = connection.ClientConnection('enabled.tls13.com', 443)
 client_conn.send_msg(bytes(client_hello))
 
-buf = None
-while not buf:
-    buf = client_conn.recv_msg()
-print('[<<<] Recv:')
-print(hexdump(buf))
-
-stream = io.BytesIO(buf)
-
-# Server Hello
-server_hello = TLSPlaintext.from_fs(stream)
-print(server_hello)
-ctx.append_handshake_record(server_hello)
-
-ctx.set_key_exchange(dhkex_class, secret_key)
-Hash.length = ctx.hash_size
-
-print('[+] shared key:', ctx.shared_key.hex())
-
-# Key Schedule
-ctx.key_schedule_in_handshake()
-
-# TODO: 現在のstreamに加えて、他にデータが送られていないか確認した後に、以下のループに入ること
-# Finished を受信したことを確認してから以下のループを抜けること
-
-is_recv_serverhello = False # TODO: ServerHelloを受け取る処理も以下のループでできるように
+is_recv_serverhello = False
 is_recv_finished = False
 
+import time
+time.sleep(1)
+
+print("=== Handshake ===")
 while True:
-    # buf = None
-    # while not buf:
-    #     buf = client_conn.recv_msg()
-    #
-    # stream = io.BytesIO(buf)
+    buf = None
+    while not buf:
+        buf = client_conn.recv_msg()
+
+    print('[<<<] Recv:')
+    print(hexdump(buf))
+
+    stream = io.BytesIO(buf)
 
     while True:
         firstbyte = stream.read(1)
         if firstbyte == b'':
-            continue
+            break
         stream.seek(-1, io.SEEK_CUR)
 
         content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
 
-        if content_type == ContentType.change_cipher_spec:
+        if not is_recv_serverhello:
+            # ServerHello
+            server_hello = TLSPlaintext.from_fs(stream)
+            print(server_hello)
+            ctx.append_handshake_record(server_hello)
+
+            ctx.set_key_exchange(dhkex_class, secret_key)
+            Hash.length = ctx.hash_size
+
+            print('[+] shared key:', ctx.shared_key.hex())
+
+            # Key Schedule
+            ctx.key_schedule_in_handshake()
+
+            is_recv_serverhello = True
+
+        elif content_type == ContentType.change_cipher_spec:
             # ChangeCipherSpec
             change_cipher_spec = TLSPlaintext.from_fs(stream)
             print(change_cipher_spec)
 
         elif content_type in (ContentType.handshake, ContentType.application_data):
             # EncryptedExtensions, Certificate, CertificateVerify, Finished
+            print("Got!")
 
             obj = TLSCiphertext.from_fs(stream).decrypt(ctx.server_traffic_crypto)
+            print('[*]', obj.fragment.msg.__class__.__name__)
             print(obj)
             ctx.append_handshake_record(obj)
 
