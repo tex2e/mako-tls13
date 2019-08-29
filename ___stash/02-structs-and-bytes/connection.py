@@ -12,12 +12,19 @@ class Connection:
         self.fs = self.socket.makefile('rwb', buffering=0)
 
     def send_msg(self, b):
-        # return self.socket.sendall(b)
         return self.fs.write(b)
 
-    def recv_msg(self):
-        # return self.socket.recv(4096)
-        return self.fs.readall()
+    def recv_msg(self, setblocking=False):
+        if setblocking:
+            self.socket.setblocking(True)
+            record_header = self.fs.read(5)
+            record_length = int.from_bytes(record_header[3:5], byteorder='big')
+            record_content = self.fs.read(record_length)
+            self.socket.setblocking(False)
+            return record_header + record_content
+
+        else:
+            return self.fs.readall()
 
     def close(self):
         return self.fs.close()

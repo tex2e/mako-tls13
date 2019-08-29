@@ -106,8 +106,8 @@ client_conn.send_msg(bytes(tlsplaintext))
 is_recv_serverhello = False
 is_recv_finished = False
 
-import time
-time.sleep(0.1)
+# import time
+# time.sleep(0.1)
 
 # TODO: バイト列の受信中に構造体への変換が始まるのを回避する
 # 1. まず TLSPlaintext の Header を socket.recv(5) で受信する
@@ -119,7 +119,7 @@ print("=== Handshake ===")
 while True:
     buf = None
     while not buf:
-        buf = client_conn.recv_msg()
+        buf = client_conn.recv_msg(setblocking=True)
 
     print('[<<<] Recv:')
     print(hexdump(buf))
@@ -224,7 +224,7 @@ try:
 
         buf = None
         while not buf:
-            buf = client_conn.recv_msg()
+            buf = client_conn.recv_msg(setblocking=False)
 
             # 受信待機時にクライアント側から入力があれば送信する
             if inputQueue.qsize() > 0:
