@@ -1,5 +1,6 @@
 
-from type import Uint8, Uint16, Opaque, OpaqueUint16, OpaqueLength
+import io
+from type import Uint8, Uint16, Opaque, OpaqueLength, OpaqueLength
 import structmeta as meta
 
 from protocol_types import ContentType
@@ -15,12 +16,8 @@ ProtocolVersion = Uint16
 class TLSPlaintext(meta.StructMeta):
     type: ContentType
     legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
-    length: Uint16 = lambda self: Uint16(len(self.fragment))
-    fragment: meta.Select('type', cases={
-        ContentType.handshake: Handshake,
-        ContentType.change_cipher_spec: OpaqueLength,
-        ContentType.alert: Alert,
-    })
+    length: Uint16 = lambda self: Uint16(len(bytes(self.fragment)))
+    fragment: OpaqueLength
 
     def encrypt(self, cipher_instance):
         msg_pad = TLSInnerPlaintext.append_pad(self)
@@ -28,14 +25,32 @@ class TLSPlaintext(meta.StructMeta):
         aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
         encrypted_record = cipher_instance.encrypt_and_tag(msg_pad, aad)
         return TLSCiphertext(
-            encrypted_record=OpaqueUint16(bytes(encrypted_record))
+            encrypted_record=OpaqueLength(bytes(encrypted_record))
         )
+
+    def get_messages(self):
+        dict = {
+            ContentType.handshake: Handshake,
+            ContentType.change_cipher_spec: OpaqueLength,
+            ContentType.alert: Alert,
+        }
+        elem_t = dict.get(self.type)
+
+        # 複数のHandshakeメッセージは結合して一つのTLSPlaintextで送ることができる
+        # https://tools.ietf.org/html/rfc8446#section-5.1
+        messages = []
+        stream_len = len(self.fragment.get_raw_bytes())
+        stream = io.BytesIO(self.fragment.get_raw_bytes())
+        while stream.tell() < stream_len:
+            messages.append(elem_t.from_fs(stream))
+        return messages
 
 @meta.struct
 class TLSCiphertext(meta.StructMeta):
     opaque_type: ContentType = ContentType.application_data
     legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
-    encrypted_record: Opaque(Uint16)
+    length: Uint16 = lambda self: Uint16(len(bytes(self.encrypted_record)))
+    encrypted_record: OpaqueLength
 
     def decrypt(self, cipher_instance):
         encrypted_record = self.encrypted_record.get_raw_bytes()
@@ -88,7 +103,8 @@ if __name__ == '__main__':
 
     from type import Uint24
     from protocol_hello import \
-        ClientHello, Random, OpaqueUint8, CipherSuites, CipherSuite, Extensions
+        ClientHello, ServerHello, \
+        Random, Opaque1, OpaqueUint8, CipherSuites, CipherSuite, Extensions
     from protocol_handshake import Handshake, HandshakeType
 
     import unittest
@@ -97,25 +113,86 @@ if __name__ == '__main__':
 
         def test_recordlayer(self):
 
-            ch = ClientHello(
-                random=Random(bytes.fromhex('AA' * 32)),
-                legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
-                cipher_suites=CipherSuites([
-                    CipherSuite.TLS_AES_256_GCM_SHA384,
-                    CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
-                    CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV]),
-                legacy_compression_methods=OpaqueUint8(b'\x00'),
-                extensions=Extensions([]),
-            )
-
             h = Handshake(
                 msg_type=HandshakeType.client_hello,
-                msg=ch)
+                msg=ClientHello(
+                    random=Random(bytes.fromhex('AA' * 32)),
+                    legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
+                    cipher_suites=CipherSuites([
+                        CipherSuite.TLS_AES_256_GCM_SHA384,
+                        CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+                        CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV]),
+                    legacy_compression_methods=OpaqueUint8(b'\x00'),
+                    extensions=Extensions([]),
+                ))
 
             plain = TLSPlaintext(
                 type=ContentType.handshake,
-                fragment=h)
+                fragment=OpaqueLength(bytes(h)))
 
+            plain_bytes = bytes.fromhex('''
+                16 03 03 00 53 01 00 00  4F 03 03 AA AA AA AA AA
+                AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA
+                AA AA AA AA AA AA AA AA  AA AA AA 20 BB BB BB BB
+                BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB
+                BB BB BB BB BB BB BB BB  BB BB BB BB 00 06 13 02
+                13 03 00 FF 01 00 00 00
+            ''')
+
+            self.assertEqual(bytes(plain), plain_bytes)
             self.assertEqual(TLSPlaintext.from_bytes(bytes(plain)), plain)
+
+            messages = plain.get_messages()
+            self.assertEqual(messages[0], h)
+
+        def test_recordlayer_multiple_messages(self):
+
+            h1 = Handshake(
+                msg_type=HandshakeType.client_hello,
+                msg=ClientHello(
+                    random=Random(bytes.fromhex('AA' * 32)),
+                    legacy_session_id=OpaqueUint8(bytes.fromhex('BB' * 32)),
+                    cipher_suites=CipherSuites([
+                        CipherSuite.TLS_AES_256_GCM_SHA384,
+                        CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+                        CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV]),
+                    legacy_compression_methods=OpaqueUint8(b'\x00'),
+                    extensions=Extensions([]),
+                ))
+            h2 = Handshake(
+                msg_type=HandshakeType.server_hello,
+                msg=ServerHello(
+                    random=Random(bytes.fromhex('CC' * 32)),
+                    legacy_session_id_echo=OpaqueUint8(bytes.fromhex('DD' * 32)),
+                    cipher_suite=CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+                    legacy_compression_method=Opaque1(b'\x00'),
+                    extensions=Extensions([]),
+                ))
+
+            plain = TLSPlaintext(
+                type=ContentType.handshake,
+                fragment=OpaqueLength(bytes(h1) + bytes(h2)))
+
+            plain_bytes = bytes.fromhex('''
+                16 03 03 00 9F
+                01 00 00 4F 03 03 AA AA  AA AA AA AA AA AA AA AA
+                AA AA AA AA AA AA AA AA  AA AA AA AA AA AA AA AA
+                AA AA AA AA AA AA 20 BB  BB BB BB BB BB BB BB BB
+                BB BB BB BB BB BB BB BB  BB BB BB BB BB BB BB BB
+                BB BB BB BB BB BB BB 00  06 13 02 13 03 00 FF 01
+                00 00 00
+                02 00 00 48 03 03 CC CC  CC CC CC CC CC CC CC CC
+                CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC
+                CC CC CC CC CC CC 20 DD  DD DD DD DD DD DD DD DD
+                DD DD DD DD DD DD DD DD  DD DD DD DD DD DD DD DD
+                DD DD DD DD DD DD DD 13  03 00 00 00
+            ''')
+
+            self.assertEqual(bytes(plain), plain_bytes)
+            self.assertEqual(TLSPlaintext.from_bytes(bytes(plain)), plain)
+
+            messages = plain.get_messages()
+            self.assertEqual(messages[0], h1)
+            self.assertEqual(messages[1], h2)
 
     unittest.main()
