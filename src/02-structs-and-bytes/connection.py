@@ -15,14 +15,18 @@ class Connection:
         return self.fs.write(b)
 
     def recv_msg(self, setblocking=False):
+        # Handshakeメッセージ受信時
         if setblocking:
+            # 1. まず TLSPlaintext の Header を socket.recv(5) で受信する
+            # 2. Header にある長さをもとに、socket.recv(Header.length) で受信する
+            # 3. 読み出したバイト列を Handshake メッセージに変換する
             self.socket.setblocking(True)
             record_header = self.fs.read(5)
             record_length = int.from_bytes(record_header[3:5], byteorder='big')
             record_content = self.fs.read(record_length)
             self.socket.setblocking(False)
             return record_header + record_content
-
+        # ApplicationDataメッセージ受信時
         else:
             return self.fs.readall()
 

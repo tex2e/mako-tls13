@@ -106,15 +106,6 @@ client_conn.send_msg(bytes(tlsplaintext))
 is_recv_serverhello = False
 is_recv_finished = False
 
-# import time
-# time.sleep(0.1)
-
-# TODO: バイト列の受信中に構造体への変換が始まるのを回避する
-# 1. まず TLSPlaintext の Header を socket.recv(5) で受信する
-# 2. Header にある長さをもとに、socket.recv(Header.length) で受信する
-# 3. 読み出したバイト列を Handshake メッセージに変換する
-# 4. 以上の処理を実装できたら上の time.sleep(0.1) を削除する
-
 print("=== Handshake ===")
 while True:
     buf = None
