@@ -89,7 +89,7 @@ tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(bytes(client_hello))
 )
-ctx.append_handshake_record(client_hello)
+ctx.append_handshake_msg(client_hello)
 
 print(tlsplaintext)
 print('[>>>] Send:')
@@ -131,7 +131,7 @@ while True:
             for msg in tlsplaintext.get_messages():
                 print('[*] ServerHello!')
                 print(msg)
-                ctx.append_handshake_record(msg)
+                ctx.append_handshake_msg(msg)
 
             ctx.set_key_exchange(dhkex_class, secret_key)
             Hash.length = ctx.hash_size
@@ -156,7 +156,7 @@ while True:
                                         .decrypt(ctx.server_traffic_crypto)
             # print(tlsplaintext)
             for msg in tlsplaintext.get_messages():
-                ctx.append_handshake_record(msg)
+                ctx.append_handshake_msg(msg)
                 print(msg)
 
                 if msg.msg_type == HandshakeType.finished:
@@ -167,12 +167,15 @@ while True:
     if is_recv_finished:
         break
 
+# verify received Finished
+
+
 # Finished
-messages = ctx.get_messages()
+msgs_bytes = ctx.get_messages_bytes()
 finished_key = hkdf.HKDF_expand_label(
     ctx.client_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
 verify_data = hkdf.secure_HMAC(
-    finished_key, hkdf.transcript_hash(messages, ctx.hash_name), ctx.hash_name)
+    finished_key, hkdf.transcript_hash(msgs_bytes, ctx.hash_name), ctx.hash_name)
 
 finished = Handshake(
     msg_type=HandshakeType.finished,
@@ -251,7 +254,7 @@ try:
             if isinstance(obj.fragment, Handshake):
                 # New Session Ticket
                 print('[+] New Session Ticket arrived!')
-                ctx.append_appdata_record(obj)
+                ctx.append_appdata_msg(obj)
 
             else:
                 print(bytes(obj.fragment))

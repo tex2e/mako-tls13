@@ -1,4 +1,5 @@
 
+from protocol_types import HandshakeType
 from protocol_extensions import ExtensionType
 from protocol_ciphersuite import CipherSuite
 import crypto_hkdf as hkdf
@@ -7,25 +8,25 @@ class TLSContext:
     def __init__(self):
         # TLSのやりとりで送信されてきたメッセージを格納する。
         # 辞書のkeyはクラス名 (ClientHelloなど) 、valueはTLSPlaintextクラスのインスタンス
-        self.tls_records = {}
+        self.tls_messages = {}
         # Handshakeレコードのrecord.fragment部分のバイト列を結合したもの
-        self.tls_messages = b''
+        self.tls_messages_bytes = b''
 
-    def append_handshake_record(self, handshake):
-        name = handshake.msg.__class__.__name__
-        self.tls_records[name] = handshake
-        self.tls_messages += bytes(handshake)
+    def append_handshake_msg(self, handshake):
+        name = handshake.msg_type
+        self.tls_messages[name] = handshake
+        self.tls_messages_bytes += bytes(handshake)
 
-    def append_appdata_record(self, handshake):
-        name = handshake.msg.__class__.__name__
-        self.tls_records[name] = handshake
+    def append_appdata_msg(self, handshake):
+        name = handshake.msg_type
+        self.tls_messages[name] = handshake
 
-    def get_messages(self):
-        return self.tls_messages
+    def get_messages_bytes(self):
+        return self.tls_messages_bytes
 
     def set_key_exchange(self, dhkex_class, secret_key):
-        self.client_hello = self.tls_records.get('ClientHello')
-        self.server_hello = self.tls_records.get('ServerHello')
+        self.client_hello = self.tls_messages.get(HandshakeType.client_hello)
+        self.server_hello = self.tls_messages.get(HandshakeType.server_hello)
         self.dhkex_class = dhkex_class # TODO: something like list or ...
         self.secret_key = secret_key   # TODO:
 
@@ -51,7 +52,7 @@ class TLSContext:
         self.hash_size = hkdf.hash_size(self.hash_name)
 
     def key_schedule_in_handshake(self):
-        messages = self.get_messages()
+        messages = self.get_messages_bytes()
         secret = bytearray(self.secret_size)
         psk    = bytearray(self.secret_size)
 
@@ -91,7 +92,7 @@ class TLSContext:
             key=server_write_key, nonce=server_write_iv)
 
     def key_schedule_in_app_data(self):
-        messages = self.get_messages()
+        messages = self.get_messages_bytes()
         secret = self.handshake_secret
         label = bytearray(self.secret_size)
 
