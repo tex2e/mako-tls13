@@ -23,8 +23,7 @@ from protocol_ext_version import SupportedVersions, \
 from protocol_ext_supportedgroups import NamedGroupList, NamedGroups, NamedGroup
 from protocol_ext_signature import SignatureSchemeList, \
     SignatureSchemes, SignatureScheme
-from protocol_ext_keyshare import KeyShareHello, \
-    KeyShareEntrys, KeyShareEntry, OpaqueUint16
+from protocol_ext_keyshare import KeyShareHello, KeyShareEntrys, KeyShareEntry
 from protocol_authentication import Finished, Hash, OpaqueHash
 from protocol_alert import Alert
 
@@ -86,12 +85,12 @@ client_hello = Handshake(
         ])
     )
 )
+ctx.append_msg(client_hello)
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(bytes(client_hello))
 )
-ctx.append_msg(client_hello)
 
 print(tlsplaintext)
 print('[>>>] Send:')
