@@ -10,19 +10,14 @@ class TLSContext:
         # 辞書のkeyはクラス名 (ClientHelloなど) 、valueはTLSPlaintextクラスのインスタンス
         self.tls_messages = {}
         # Handshakeレコードのrecord.fragment部分のバイト列を結合したもの
-        self.tls_messages_bytes = b''
+        self.tls_messages_bytes = []
 
-    def append_handshake_msg(self, handshake):
-        name = handshake.msg_type
-        self.tls_messages[name] = handshake
-        self.tls_messages_bytes += bytes(handshake)
+    def append_msg(self, handshake):
+        self.tls_messages[handshake.msg_type] = handshake
+        self.tls_messages_bytes.append(bytes(handshake))
 
-    def append_appdata_msg(self, handshake):
-        name = handshake.msg_type
-        self.tls_messages[name] = handshake
-
-    def get_messages_bytes(self):
-        return self.tls_messages_bytes
+    def get_messages_byte(self):
+        return b''.join(self.tls_messages_bytes)
 
     def set_key_exchange(self, dhkex_class, secret_key):
         self.client_hello = self.tls_messages.get(HandshakeType.client_hello)
@@ -52,7 +47,7 @@ class TLSContext:
         self.hash_size = hkdf.hash_size(self.hash_name)
 
     def key_schedule_in_handshake(self):
-        messages = self.get_messages_bytes()
+        messages = self.get_messages_byte()
         secret = bytearray(self.secret_size)
         psk    = bytearray(self.secret_size)
 
@@ -92,7 +87,7 @@ class TLSContext:
             key=server_write_key, nonce=server_write_iv)
 
     def key_schedule_in_app_data(self):
-        messages = self.get_messages_bytes()
+        messages = self.get_messages_byte()
         secret = self.handshake_secret
         label = bytearray(self.secret_size)
 

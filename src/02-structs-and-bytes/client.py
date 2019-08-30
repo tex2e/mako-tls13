@@ -2,6 +2,7 @@
 # python 3.7 >= is required!
 
 import os
+import sys
 import io
 import threading
 import queue
@@ -89,7 +90,7 @@ tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(bytes(client_hello))
 )
-ctx.append_handshake_msg(client_hello)
+ctx.append_msg(client_hello)
 
 print(tlsplaintext)
 print('[>>>] Send:')
@@ -125,13 +126,14 @@ while True:
 
         content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
 
+        # 最初のデータはServerHello
         if not is_recv_serverhello:
             # ServerHello
             tlsplaintext = TLSPlaintext.from_fs(stream)
             for msg in tlsplaintext.get_messages():
                 print('[*] ServerHello!')
                 print(msg)
-                ctx.append_handshake_msg(msg)
+                ctx.append_msg(msg)
 
             ctx.set_key_exchange(dhkex_class, secret_key)
             Hash.length = ctx.hash_size
@@ -143,12 +145,14 @@ while True:
 
             is_recv_serverhello = True
 
+        # ChangeCipherSpecはTLS 1.3では無視する
         elif content_type == ContentType.change_cipher_spec:
             # ChangeCipherSpec
             change_cipher_spec = TLSPlaintext.from_fs(stream)
             print(change_cipher_spec)
 
-        elif content_type in (ContentType.handshake, ContentType.application_data):
+        # 暗号化されたHandshakeメッセージ
+        elif content_type == ContentType.application_data:
             # EncryptedExtensions, Certificate, CertificateVerify, Finished
             print("Got!")
 
@@ -156,7 +160,7 @@ while True:
                                         .decrypt(ctx.server_traffic_crypto)
             # print(tlsplaintext)
             for msg in tlsplaintext.get_messages():
-                ctx.append_handshake_msg(msg)
+                ctx.append_msg(msg)
                 print(msg)
 
                 if msg.msg_type == HandshakeType.finished:
@@ -168,14 +172,25 @@ while True:
         break
 
 # verify received Finished
+msgs_byte = b''.join(ctx.tls_messages_bytes[:-1]) # 最後の受信したFinished以外のメッセージ
+finished_key = hkdf.HKDF_expand_label(
+    ctx.server_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
+expected_verify_data = hkdf.secure_HMAC(
+    finished_key, hkdf.transcript_hash(msgs_byte, ctx.hash_name), ctx.hash_name)
+actual_verify_data = \
+    ctx.tls_messages.get(HandshakeType.finished).msg.verify_data.get_raw_bytes()
 
+if actual_verify_data != expected_verify_data:
+    print('decrypt_error!')
+    # TODO: create and send Alert msg
+    sys.exit(0)
 
 # Finished
-msgs_bytes = ctx.get_messages_bytes()
+msgs_byte = ctx.get_messages_byte()
 finished_key = hkdf.HKDF_expand_label(
     ctx.client_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
 verify_data = hkdf.secure_HMAC(
-    finished_key, hkdf.transcript_hash(msgs_bytes, ctx.hash_name), ctx.hash_name)
+    finished_key, hkdf.transcript_hash(msgs_byte, ctx.hash_name), ctx.hash_name)
 
 finished = Handshake(
     msg_type=HandshakeType.finished,
@@ -254,7 +269,7 @@ try:
             if isinstance(obj.fragment, Handshake):
                 # New Session Ticket
                 print('[+] New Session Ticket arrived!')
-                ctx.append_appdata_msg(obj)
+                ctx.append_msg(obj)
 
             else:
                 print(bytes(obj.fragment))
