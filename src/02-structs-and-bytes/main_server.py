@@ -94,8 +94,6 @@ print(server_hello)
 ctx.set_key_exchange(dhkex_class, secret_key)
 ctx.key_schedule_in_handshake()
 
-# print(hexdump(bytes(ctx.get_messages_byte())))
-
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(bytes(server_hello))
@@ -132,8 +130,8 @@ certificate = Handshake(
 ctx.append_msg(certificate)
 print(certificate)
 
-# print("DEBUG:")
-# print(hexdump(bytes(encrypted_extensions) + bytes(certificate)))
+# TODO: create CertificateVerify
+# TODO: create Finished
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
