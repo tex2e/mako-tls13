@@ -6,6 +6,7 @@ import sys
 import io
 import threading
 import queue
+import ssl
 
 import connection
 from type import Uint8, Uint16, OpaqueUint8, OpaqueUint16, OpaqueLength
@@ -32,7 +33,7 @@ from protocol_alert import Alert
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
 
-ctx = TLSContext()
+ctx = TLSContext('server')
 
 dhkex_class = x25519
 
@@ -51,6 +52,7 @@ stream = io.BytesIO(buf)
 for msg in TLSPlaintext.from_fs(stream).get_messages():
     print('[*] ClientHello!')
     print(msg)
+    print(hexdump(bytes(msg)))
     ctx.append_msg(msg)
 
 # CipherSuite は chacha20poly1305 しか対応していないので
@@ -88,8 +90,11 @@ server_hello = Handshake(
 ctx.append_msg(server_hello)
 print(server_hello)
 
+# Key Schedule
 ctx.set_key_exchange(dhkex_class, secret_key)
 ctx.key_schedule_in_handshake()
+
+# print(hexdump(bytes(ctx.get_messages_byte())))
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
@@ -110,7 +115,6 @@ print(encrypted_extensions)
 
 # create Certificate
 with open('cert/server.crt', 'r') as f:
-    import ssl
     cert_data = ssl.PEM_cert_to_DER_cert(f.read())
 
 certificate = Handshake(
@@ -128,7 +132,8 @@ certificate = Handshake(
 ctx.append_msg(certificate)
 print(certificate)
 
-
+# print("DEBUG:")
+# print(hexdump(bytes(encrypted_extensions) + bytes(certificate)))
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,

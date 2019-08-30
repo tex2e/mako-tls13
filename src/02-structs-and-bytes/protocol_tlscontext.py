@@ -2,10 +2,14 @@
 from protocol_types import HandshakeType
 from protocol_extensions import ExtensionType
 from protocol_ciphersuite import CipherSuite
+from protocol_ext_supportedgroups import NamedGroup
 import crypto_hkdf as hkdf
 
 class TLSContext:
-    def __init__(self):
+    def __init__(self, peer_name):
+        # TLSのどちら側の通信者か
+        assert peer_name in ('client', 'server')
+        self.peer_name = peer_name
         # TLSのやりとりで送信されてきたメッセージを格納する。
         # 辞書のkeyはクラス名 (ClientHelloなど) 、valueはTLSPlaintextクラスのインスタンス
         self.tls_messages = {}
@@ -25,22 +29,29 @@ class TLSContext:
         self.dhkex_class = dhkex_class # TODO: something like list or ...
         self.secret_key = secret_key   # TODO:
 
-        self.derive_negotiated_params()
+        self._derive_negotiated_params()
 
-    def derive_negotiated_params(self):
+    def _derive_negotiated_params(self):
         self.cipher_suite = self.server_hello.msg.cipher_suite
 
-        for ext in self.server_hello.msg.extensions:
-            if ext.extension_type == ExtensionType.key_share:
-                server_share = ext.extension_data.shares
-
-        # self.client_share = self.client_hello.fragment.msg.extensions \
-        #     .find(lambda ext: ext.extension_type == ExtensionType.key_share) \
-        #     .extension_data.shares \
-        #     .find(lambda keyshare: keyshare.group == server_share.group)
+        # 共通鍵の導出
+        peer_share = None
+        if self.peer_name == 'client':
+            for ext in self.server_hello.msg.extensions:
+                if ext.extension_type == ExtensionType.key_share:
+                    peer_share = ext.extension_data.shares
+                    break
+        elif self.peer_name == 'server':
+            ext = self.client_hello.msg.extensions \
+                .find(lambda ext: ext.extension_type == ExtensionType.key_share)
+            for client_share in ext.extension_data.shares:
+                if client_share.group == NamedGroup.x25519:
+                    peer_share = client_share
+                    break
 
         self.shared_key = self.dhkex_class(
-            self.secret_key, server_share.key_exchange.get_raw_bytes())
+            self.secret_key, peer_share.key_exchange.get_raw_bytes())
+        # print('[+] shared key:', self.shared_key.hex())
 
         self.hash_name   = CipherSuite.get_hash_name(self.cipher_suite)
         self.secret_size = CipherSuite.get_hash_size(self.cipher_suite)

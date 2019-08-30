@@ -30,7 +30,7 @@ from protocol_alert import Alert
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
 
-ctx = TLSContext()
+ctx = TLSContext('client')
 
 dhkex_class = x25519
 
