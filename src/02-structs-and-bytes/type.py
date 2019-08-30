@@ -278,6 +278,15 @@ class Enum(Type, BuildinEnum):
     def get_type(cls):
         return cls.elem_t.value
 
+# 列挙型にない値が与えらたとき unknown という名前の値を動的に生成して返すためのクラス
+class EnumUnknown(Enum):
+    @classmethod
+    def _missing_(cls, value):
+        obj = object.__new__(cls)
+        obj._name_ = 'unknown'
+        obj._value_ = value
+        return obj
+
 
 if __name__ == '__main__':
 
@@ -460,5 +469,23 @@ if __name__ == '__main__':
             l = ListOpaqueUint8([OpaqueUint8(b'\x12\x12'), OpaqueUint8(b'\xff\xff')])
             self.assertEqual(bytes(l), b'\x06\x02\x12\x12\x02\xff\xff')
             self.assertEqual(ListOpaqueUint8.from_bytes(bytes(l)), l)
+
+
+        def test_enum(self):
+            class FooType(Enum):
+                hoge = 1
+
+            self.assertEqual(FooType.hoge, FooType(1))
+            with self.assertRaises(Exception) as cm:
+                FooType(2)
+
+        def test_enum_unknown(self):
+            class FooType(EnumUnknown):
+                hoge = 1
+
+            self.assertEqual(FooType.hoge, FooType(1))
+            t2 = FooType(2)
+            self.assertEqual(t2.name, 'unknown')
+            self.assertEqual(t2.value, 2)
 
     unittest.main()

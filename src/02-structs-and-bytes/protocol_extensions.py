@@ -1,12 +1,12 @@
 
-from type import Uint16, List, Enum
+from type import Uint16, List, EnumUnknown, OpaqueLength
 import structmeta as meta
 
 from protocol_ext_version import SupportedVersions
 from protocol_ext_supportedgroups import NamedGroupList
 from protocol_ext_keyshare import KeyShareHello
 
-class ExtensionType(Enum):
+class ExtensionType(EnumUnknown):
     elem_t = Uint16
 
     server_name = Uint16(0)
@@ -42,6 +42,7 @@ class Extension(meta.StructMeta):
         ExtensionType.supported_versions: SupportedVersions,
         ExtensionType.supported_groups: NamedGroupList,
         ExtensionType.key_share: KeyShareHello,
+        meta.Otherwise: OpaqueLength,
     })
 
 Extensions = List(size_t=Uint16, elem_t=Extension)

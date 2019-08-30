@@ -168,9 +168,20 @@ class Select:
         # 既に格納した値から使用する型を決定する
         ret = self.cases.get(value)
         if ret is None:
+            ret = self.cases.get(Otherwise)
+        if ret is None:
             raise Exception('Select(%s) cannot map to class in %s!' % \
                 (value, instance.__class__.__name__))
         return ret
+
+# Select で条件に当てはまらない場合の default を表すクラス
+# Usage:
+#     meta.Select('fieldName', cases={
+#         HandshakeType.client_hello: ClientHello,
+#         meta.Otherwise:             OpaqueLength
+#     })
+class Otherwise:
+    pass
 
 
 if __name__ == '__main__':
