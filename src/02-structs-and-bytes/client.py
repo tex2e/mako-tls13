@@ -26,6 +26,7 @@ from protocol_ext_signature import SignatureSchemeList, \
 from protocol_ext_keyshare import KeyShareHello, \
     KeyShareEntrys, KeyShareEntry, OpaqueUint16
 from protocol_authentication import Finished, Hash, OpaqueHash
+from protocol_alert import Alert
 
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
@@ -126,8 +127,16 @@ while True:
 
         content_type = ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
 
+        # Alert受信時
+        if content_type == ContentType.alert:
+            tlsplaintext = TLSPlaintext.from_fs(stream)
+            for alert in tlsplaintext.get_messages():
+                print('[-] Recv Alert!')
+                print(alert)
+            sys.exit(1)
+
         # 最初のデータはServerHello
-        if not is_recv_serverhello:
+        elif not is_recv_serverhello:
             # ServerHello
             tlsplaintext = TLSPlaintext.from_fs(stream)
             for msg in tlsplaintext.get_messages():
@@ -262,17 +271,30 @@ try:
                 break
             stream.seek(-1, io.SEEK_CUR)
 
-            obj = TLSCiphertext.from_fs(stream) \
-                .decrypt(ctx.server_app_data_crypto)
-            print(obj)
+            content_type = \
+                ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
 
-            if isinstance(obj.fragment, Handshake):
-                # New Session Ticket
-                print('[+] New Session Ticket arrived!')
-                ctx.append_msg(obj)
+            # Alert受信時
+            if content_type == ContentType.alert:
+                tlsplaintext = TLSPlaintext.from_fs(stream)
+                for alert in tlsplaintext.get_messages():
+                    print('[-] Recv Alert!')
+                    print(alert)
+                sys.exit(1)
 
-            else:
-                print(bytes(obj.fragment))
+            # ApplicationData(暗号化データ)受信時
+            elif content_type == ContentType.application_data:
+                obj = TLSCiphertext.from_fs(stream) \
+                    .decrypt(ctx.server_app_data_crypto)
+                print(obj)
+
+                if isinstance(obj.fragment, Handshake):
+                    # New Session Ticket
+                    print('[+] New Session Ticket arrived!')
+                    ctx.append_msg(obj)
+
+                else:
+                    print(bytes(obj.fragment))
 
 except KeyboardInterrupt:
     print('\nBye!')
