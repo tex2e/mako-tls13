@@ -9,7 +9,7 @@ import queue
 import ssl
 
 import connection
-from type import Uint8, Uint16, OpaqueUint8, OpaqueUint16, OpaqueLength
+from type import Uint8, Uint16, OpaqueUint8, OpaqueUint16, OpaqueUint24, OpaqueLength
 from disp import hexdump
 
 from protocol_tlscontext import TLSContext
@@ -27,7 +27,9 @@ from protocol_ext_signature import SignatureSchemeList, \
     SignatureSchemes, SignatureScheme
 from protocol_ext_keyshare import KeyShareHello, KeyShareEntrys, KeyShareEntry
 from protocol_authentication import Certificate, \
-    CertificateEntrys, CertificateEntry, Finished, Hash, OpaqueHash
+    CertificateEntrys, CertificateEntry, \
+    CertificateVerify, \
+    Finished, Hash, OpaqueHash
 from protocol_alert import Alert
 
 from crypto_x25519 import x25519
@@ -121,7 +123,7 @@ certificate = Handshake(
         certificate_request_context=OpaqueUint8(b''),
         certificate_list=CertificateEntrys([
             CertificateEntry(
-                cert_data=cert_data,
+                cert_data=OpaqueUint24(cert_data),
                 extensions=Extensions([])
             )
         ])
@@ -129,19 +131,55 @@ certificate = Handshake(
 )
 ctx.append_msg(certificate)
 print(certificate)
+print(hexdump(bytes(certificate)))
 
-# TODO: create CertificateVerify
+# create CertificateVerify
+# 秘密鍵 cert/server.key を使って証明書に署名する
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+key = RSA.importKey(open('cert/server.key').read())
+client_signature_scheme_list = \
+    ctx.tls_messages.get(HandshakeType.client_hello).msg.extensions \
+    .find(lambda ext: ext.extension_type == ExtensionType.signature_algorithms) \
+    .extension_data.supported_signature_algorithms
+print(client_signature_scheme_list)
+
+if SignatureScheme.rsa_pss_pss_sha256 in client_signature_scheme_list:
+    server_signature_scheme = SignatureScheme.rsa_pss_pss_sha256
+    from Crypto.Signature import PKCS1_PSS
+    message = b'\x20' * 64 + b'TLS 1.3, server CertificateVerify' + b'\x00' + hkdf.transcript_hash(ctx.get_messages_byte(), ctx.hash_name)
+    print("message:")
+    print(hexdump(message))
+    h = SHA256.new(message)
+    certificate_signature = PKCS1_PSS.new(key).sign(h)
+else:
+    raise NotImplementedError()
+
+certificate_verify = Handshake(
+    msg_type=HandshakeType.certificate_verify,
+    msg=CertificateVerify(
+        algorithm=server_signature_scheme,
+        signature=OpaqueUint16(certificate_signature)
+    )
+)
+ctx.append_msg(certificate_verify)
+print(certificate_verify)
+
+
 # TODO: create Finished
+
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
-    fragment=OpaqueLength(bytes(encrypted_extensions) + bytes(certificate))
+    fragment=OpaqueLength(
+        bytes(encrypted_extensions) + bytes(certificate) + bytes(certificate_verify))
 )
 tlsciphertext = tlsplaintext.encrypt(ctx.server_traffic_crypto)
 print('[>>>] Send:')
 print(hexdump(bytes(tlsciphertext)))
 
 server_conn.send_msg(bytes(tlsciphertext))
+
 
 
 
