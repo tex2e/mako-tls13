@@ -144,8 +144,8 @@ client_signature_scheme_list = \
     .extension_data.supported_signature_algorithms
 print(client_signature_scheme_list)
 
-if SignatureScheme.rsa_pss_pss_sha256 in client_signature_scheme_list:
-    server_signature_scheme = SignatureScheme.rsa_pss_pss_sha256
+if SignatureScheme.rsa_pss_rsae_sha256 in client_signature_scheme_list:
+    server_signature_scheme = SignatureScheme.rsa_pss_rsae_sha256
     from Crypto.Signature import PKCS1_PSS
     message = b'\x20' * 64 + b'TLS 1.3, server CertificateVerify' + b'\x00' + hkdf.transcript_hash(ctx.get_messages_byte(), ctx.hash_name)
     print("message:")
@@ -164,7 +164,6 @@ certificate_verify = Handshake(
 )
 ctx.append_msg(certificate_verify)
 print(certificate_verify)
-
 
 # TODO: create Finished
 
