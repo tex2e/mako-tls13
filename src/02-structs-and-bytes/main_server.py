@@ -30,7 +30,7 @@ from protocol_authentication import Certificate, \
     CertificateEntrys, CertificateEntry, \
     CertificateVerify, \
     Finished, Hash, OpaqueHash
-from protocol_alert import Alert
+from protocol_alert import Alert, AlertLevel, AlertDescription
 
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
@@ -288,6 +288,21 @@ try:
 
 except KeyboardInterrupt:
     print('\nBye!')
+
+# Closure Alert
+closure_alert = Alert(
+    level=AlertLevel.fatal,
+    description=AlertDescription.close_notify
+)
+
+tlsplaintext = TLSPlaintext(
+    type=ContentType.alert,
+    fragment=closure_alert
+)
+tlsciphertext = tlsplaintext.encrypt(ctx.server_app_data_crypto)
+print(tlsciphertext)
+print(hexdump(bytes(tlsciphertext)))
+server_conn.send_msg(bytes(tlsciphertext))
 
 server_conn.close()
 
