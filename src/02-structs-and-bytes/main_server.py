@@ -184,3 +184,6 @@ server_conn.send_msg(bytes(tlsciphertext))
 
 
 server_conn.close()
+
+
+# ~/local/bin/openssl s_client -connect 127.0.0.1:50007 -state -debug -tls1_3
