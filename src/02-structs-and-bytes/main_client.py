@@ -25,7 +25,7 @@ from protocol_ext_signature import SignatureSchemeList, \
     SignatureSchemes, SignatureScheme
 from protocol_ext_keyshare import KeyShareHello, KeyShareEntrys, KeyShareEntry
 from protocol_authentication import Finished, Hash, OpaqueHash
-from protocol_alert import Alert
+from protocol_alert import Alert, AlertLevel, AlertDescription
 
 from crypto_x25519 import x25519
 import crypto_hkdf as hkdf
@@ -297,6 +297,21 @@ try:
 
 except KeyboardInterrupt:
     print('\nBye!')
+
+# Closure Alert
+closure_alert = Alert(
+    level=AlertLevel.fatal,
+    description=AlertDescription.close_notify
+)
+
+tlsplaintext = TLSPlaintext(
+    type=ContentType.alert,
+    fragment=closure_alert
+)
+tlsciphertext = tlsplaintext.encrypt(ctx.client_app_data_crypto)
+print(tlsciphertext)
+print(hexdump(bytes(tlsciphertext)))
+client_conn.send_msg(bytes(tlsciphertext))
 
 loop_keyboard_input = False
 
