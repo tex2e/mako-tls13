@@ -167,7 +167,7 @@ certificate_verify = Handshake(
 ctx.append_msg(certificate_verify)
 print(certificate_verify)
 
-# TODO: create Finished
+# create Finished
 msgs_byte = ctx.get_messages_byte()
 finished_key = hkdf.HKDF_expand_label(
     ctx.server_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
@@ -182,7 +182,7 @@ finished = Handshake(
 ctx.append_msg(finished)
 print(finished)
 
-
+# send EncryptedExtensions + Certificate + CertificateVerify + Finished
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(
@@ -197,8 +197,97 @@ print(hexdump(bytes(tlsciphertext)))
 server_conn.send_msg(bytes(tlsciphertext))
 
 
-while True:
-    pass
+loop_keyboard_input = True
+
+def read_keyboard_input(inputQueue):
+    print('Ready for keyboard input:')
+    while loop_keyboard_input:
+        input_str = input()
+        inputQueue.put(input_str + "\n")
+
+inputQueue = queue.Queue()
+inputThread = threading.Thread(target=read_keyboard_input,
+                               args=(inputQueue,), daemon=True)
+inputThread.start()
+
+is_recv_finished = False
+
+print("=== Application Data ===")
+try:
+    while True:
+        buf = None
+        while not buf:
+            buf = server_conn.recv_msg(setblocking=False)
+
+            # 受信待機時にサーバ側から入力があれば送信する
+            if inputQueue.qsize() > 0:
+                input_str = inputQueue.get()
+                app_data = TLSPlaintext(
+                    type=ContentType.application_data,
+                    fragment=OpaqueLength(input_str.encode())
+                )
+                print(hexdump(bytes(app_data)))
+
+                tlsciphertext = app_data.encrypt(ctx.server_app_data_crypto)
+                print(tlsciphertext)
+                print('[>>>] Send:')
+                print(hexdump(bytes(tlsciphertext)))
+
+                server_conn.send_msg(bytes(tlsciphertext))
+
+        print('[<<<] Recv:')
+        print(hexdump(buf))
+
+        stream = io.BytesIO(buf)
+
+        while True:
+            firstbyte = stream.read(1)
+            if firstbyte == b'':
+                break
+            stream.seek(-1, io.SEEK_CUR)
+
+            content_type = \
+                ContentType(Uint8(int.from_bytes(firstbyte, byteorder='big')))
+
+            # Alert受信時
+            if content_type == ContentType.alert:
+                tlsplaintext = TLSPlaintext.from_fs(stream)
+                for alert in tlsplaintext.get_messages():
+                    print('[-] Recv Alert!')
+                    print(alert)
+                sys.exit(1)
+
+            # ChangeCipherSpecはTLS 1.3では無視する
+            elif content_type == ContentType.change_cipher_spec:
+                # ChangeCipherSpec
+                change_cipher_spec = TLSPlaintext.from_fs(stream)
+                print(change_cipher_spec)
+
+            # Finished受信時
+            elif not is_recv_finished and content_type == ContentType.application_data:
+                tlsplaintext = \
+                    TLSCiphertext.from_fs(stream).decrypt(ctx.client_traffic_crypto)
+                for msg in tlsplaintext.get_messages():
+                    print('[*] Finished!')
+                    print(msg)
+                    print(hexdump(bytes(msg)))
+                    # ctx.append_msg(msg)
+
+                is_recv_finished = True
+
+                # Key Schedule
+                ctx.key_schedule_in_app_data()
+
+            # ApplicationData(暗号化データ)受信時
+            elif content_type == ContentType.application_data:
+                obj = TLSCiphertext.from_fs(stream) \
+                    .decrypt(ctx.client_app_data_crypto)
+                print(obj)
+
+                print(bytes(obj.fragment))
+
+except KeyboardInterrupt:
+    print('\nBye!')
 
 server_conn.close()
 
