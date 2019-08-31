@@ -5,6 +5,7 @@ import structmeta as meta
 from protocol_ext_version import SupportedVersions
 from protocol_ext_supportedgroups import NamedGroupList
 from protocol_ext_keyshare import KeyShareHello
+from protocol_ext_signature import SignatureSchemeList
 
 class ExtensionType(EnumUnknown):
     elem_t = Uint16
@@ -42,6 +43,7 @@ class Extension(meta.StructMeta):
         ExtensionType.supported_versions: SupportedVersions,
         ExtensionType.supported_groups: NamedGroupList,
         ExtensionType.key_share: KeyShareHello,
+        ExtensionType.signature_algorithms: SignatureSchemeList,
         meta.Otherwise: OpaqueLength,
     })
 
