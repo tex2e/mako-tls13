@@ -95,6 +95,7 @@ print(server_hello)
 # Key Schedule
 ctx.set_key_exchange(dhkex_class, secret_key)
 ctx.key_schedule_in_handshake()
+Hash.length = ctx.hash_size
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
@@ -147,7 +148,8 @@ print(client_signature_scheme_list)
 if SignatureScheme.rsa_pss_rsae_sha256 in client_signature_scheme_list:
     server_signature_scheme = SignatureScheme.rsa_pss_rsae_sha256
     from Crypto.Signature import PKCS1_PSS
-    message = b'\x20' * 64 + b'TLS 1.3, server CertificateVerify' + b'\x00' + hkdf.transcript_hash(ctx.get_messages_byte(), ctx.hash_name)
+    message = b'\x20' * 64 + b'TLS 1.3, server CertificateVerify' \
+        + b'\x00' + hkdf.transcript_hash(ctx.get_messages_byte(), ctx.hash_name)
     print("message:")
     print(hexdump(message))
     h = SHA256.new(message)
@@ -166,12 +168,27 @@ ctx.append_msg(certificate_verify)
 print(certificate_verify)
 
 # TODO: create Finished
+msgs_byte = ctx.get_messages_byte()
+finished_key = hkdf.HKDF_expand_label(
+    ctx.server_hs_traffic_secret, b'finished', b'', ctx.hash_size, ctx.hash_name)
+verify_data = hkdf.secure_HMAC(
+    finished_key, hkdf.transcript_hash(msgs_byte, ctx.hash_name), ctx.hash_name)
+finished = Handshake(
+    msg_type=HandshakeType.finished,
+    msg=Finished(
+        verify_data=OpaqueHash(bytes(verify_data))
+    )
+)
+ctx.append_msg(finished)
+print(finished)
 
 
 tlsplaintext = TLSPlaintext(
     type=ContentType.handshake,
     fragment=OpaqueLength(
-        bytes(encrypted_extensions) + bytes(certificate) + bytes(certificate_verify))
+        bytes(encrypted_extensions) + bytes(certificate) +
+        bytes(certificate_verify) + bytes(finished)
+    )
 )
 tlsciphertext = tlsplaintext.encrypt(ctx.server_traffic_crypto)
 print('[>>>] Send:')
@@ -180,7 +197,8 @@ print(hexdump(bytes(tlsciphertext)))
 server_conn.send_msg(bytes(tlsciphertext))
 
 
-
+while True:
+    pass
 
 server_conn.close()
 
