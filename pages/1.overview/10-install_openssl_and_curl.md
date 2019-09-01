@@ -14,6 +14,8 @@ OpenSSL は TLS クライアントとしても使うことができます。
 それ以下のバージョンだと TLS 1.2 までしか使えません。GitHubの[openssl](https://github.com/openssl/openssl)のページにアクセスしてダウンロードすることもできますが、最新のレポジトリは必ず動くという保証はないので、opensslの[releases](https://github.com/openssl/openssl/releases)から1.1.1以上の最新のバージョンをダウンロードします[^openssl]。
 ここでは OpenSSL_1_1_1c をインストールする例をやりますが、必要に応じてバージョンを置き換えながら読んでください。
 
+あとはシステムのopensslを上書きしないために、インストール先を `~/local` にしておきます。
+
 ソースのダウンロードと展開：
 
 ```bash
@@ -40,7 +42,7 @@ make install_runtime install_dev
 make でオプション -j4 を付けると4並列でコンパイルするようになるので、高速化することができます。
 make install ではなく make install_runtime install_dev をしているのはドキュメントはインストールしないようにして早く終わらせるためです。
 インストールが終わったら、さっそく実行してみましょう。
-https://tls13.pinterjann.is/ は TLS 1.3 に対応しているサイトなので、ここにアクセスしてみます。
+[https://tls13.pinterjann.is](https://tls13.pinterjann.is)は TLS 1.3 に対応しているサイトなので、ここにアクセスしてみます。
 
 ```
 ~/local/bin/openssl s_client -connect tls13.pinterjann.is:443 -tls1_3
@@ -73,8 +75,8 @@ Strict-Transport-Security: max-age=31536000
 Congratulations! You're connected using TLSv1.3! という文字列がHTMLの中にあれば成功です！
 
 {{site.data.alerts.important}}
-通信が成功したからといって、OpenSSLのzipファイルやソースコードを消さないようにしてください。
-後で実行時にクライアントとサーバで同じ鍵が導出できたか確認するために、ソースコードを直接編集してデバッグ用のプログラムを埋め込み、再度コンパイルするからです。
+インストールが成功しても、OpenSSLのzipファイルやソースコードを消さないようにしてください。
+後で実行時にクライアントとサーバで同じ鍵が導出できるかを確認するために、ソースコードを直接編集してデバッグ用のプログラムを埋め込み、再度コンパイルした openssl コマンドを使用するためです。
 また、ソースコードを編集する前後の差分を取るために、元のソースコードがあるzipファイルも消さないようにしてください。
 {{site.data.alerts.end}}
 
@@ -105,6 +107,29 @@ make install-exec
 ```
 
 出力の中に「SSL connection using TLSv1.3」という文字列があれば、TLS 1.3で接続されていることが確認できます。
+
+
+## TLS 1.3 対応サーバ
+
+TLS 1.3で正しく通信できるか確認できるテストサーバがあります。
+そのリストを以下に示します。なお、対応バージョンがRFC 8446ではないものはドラフトの段階で実装されたものであることを示しています。
+
+|実装|対応バージョン|URL|
+|---|---|
+|BoringSSL+nginx | -28 | [https://enabled.tls13.com](https://enabled.tls13.com)
+|mod_nss | -28 | [https://tls13.crypto.mozilla.org/](https://tls13.crypto.mozilla.org/)
+|BoringSSL | -23, -28, RFC 8446 | [https://tls.ctf.network/](https://tls.ctf.network/)
+|rustls+nginx | RFC 8446 | [https://rustls.jbp.io/](https://rustls.jbp.io/)
+|picotls+H2O | -18 | [https://h2o.examp1e.net](https://h2o.examp1e.net)
+|Haskell tls | -28 | [https://mew.org/](https://mew.org/)
+|OpenSSL | -18 | [https://tls13.baishancloud.com/](https://tls13.baishancloud.com/)
+|OpenSSL | -22 | [https://tls13.baishancloud.com:44344/](https://tls13.baishancloud.com:44344/)
+|OpenSSL+nginx | -26 | [https://tls14.com/](https://tls14.com/)
+|OpenSSL+nginx | RFC 8446 | [https://tls13.pinterjann.is/](https://tls13.pinterjann.is/)
+|SwiftTLS | -26,-28, RFC 8446 | [https://swifttls.org/](https://swifttls.org/)
+|Tris+Caddy | RFC 8446 | [https://www.henrock.net/](https://www.henrock.net/)
+|OpenSSL | RFC 8446 | [https://tls13.akamai.io/](https://tls13.akamai.io/)
+
 
 -----
 
