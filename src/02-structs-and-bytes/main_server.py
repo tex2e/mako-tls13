@@ -97,13 +97,9 @@ ctx.set_key_exchange(dhkex_class, secret_key)
 ctx.key_schedule_in_handshake()
 Hash.length = ctx.hash_size
 
-tlsplaintext = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=OpaqueLength(bytes(server_hello))
-)
+tlsplaintext = TLSPlaintext.create(ContentType.handshake, server_hello)
 print('[>>>] Send:')
 print(hexdump(bytes(tlsplaintext)))
-
 server_conn.send_msg(bytes(tlsplaintext))
 
 # create EncryptedExtensions
@@ -183,14 +179,11 @@ ctx.append_msg(finished)
 print(finished)
 
 # send EncryptedExtensions + Certificate + CertificateVerify + Finished
-tlsplaintext = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=OpaqueLength(
-        bytes(encrypted_extensions) + bytes(certificate) +
-        bytes(certificate_verify) + bytes(finished)
-    )
-)
-tlsciphertext = tlsplaintext.encrypt(ctx.server_traffic_crypto)
+tlsciphertext = \
+    TLSPlaintext.create(ContentType.handshake,
+                        encrypted_extensions, certificate,
+                        certificate_verify, finished) \
+    .encrypt(ctx.server_traffic_crypto)
 print('[>>>] Send:')
 print(hexdump(bytes(tlsciphertext)))
 
@@ -221,14 +214,10 @@ try:
 
             # 受信待機時にサーバ側から入力があれば送信する
             if inputQueue.qsize() > 0:
-                input_str = inputQueue.get()
-                app_data = TLSPlaintext(
-                    type=ContentType.application_data,
-                    fragment=OpaqueLength(input_str.encode())
-                )
-                print(hexdump(bytes(app_data)))
-
-                tlsciphertext = app_data.encrypt(ctx.server_app_data_crypto)
+                input_byte = inputQueue.get().encode()
+                tlsciphertext = \
+                    TLSPlaintext.create(ContentType.application_data, input_byte) \
+                    .encrypt(ctx.server_app_data_crypto)
                 print(tlsciphertext)
                 print('[>>>] Send:')
                 print(hexdump(bytes(tlsciphertext)))
@@ -271,7 +260,6 @@ try:
                     print('[*] Finished!')
                     print(msg)
                     print(hexdump(bytes(msg)))
-                    # ctx.append_msg(msg)
 
                 is_recv_finished = True
 
@@ -295,11 +283,8 @@ closure_alert = Alert(
     description=AlertDescription.close_notify
 )
 
-tlsplaintext = TLSPlaintext(
-    type=ContentType.alert,
-    fragment=closure_alert
-)
-tlsciphertext = tlsplaintext.encrypt(ctx.server_app_data_crypto)
+tlsciphertext = TLSPlaintext.create(ContentType.alert, closure_alert) \
+    .encrypt(ctx.server_app_data_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
 server_conn.send_msg(bytes(tlsciphertext))
