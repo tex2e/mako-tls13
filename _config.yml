@@ -35,7 +35,7 @@ exclude:
   - .idea/
   - .gitignore
   - vendor
-  - assets
+  - assets/rfc
   - src
 # these are the files and directories that jekyll will exclude from the build
 
