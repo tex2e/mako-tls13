@@ -8,7 +8,7 @@ permalink: protocol_structs_and_bytes.html
 Pythonではデータ構造としてメッセージを保存し、ソケット通信で送るときはデータ構造をバイト列に変換します。
 このセクションでは、基本的な型のデータ構造とバイト列の変換について説明します。
 
-## uint (数値)
+## Uint型 (数値)
 
 一般的には uint は unsinged int の略ですが、RFC 8446 では次のように型が定義されています。
 
@@ -19,125 +19,23 @@ Pythonではデータ構造としてメッセージを保存し、ソケット�
 | uint24 |                | 3 |
 | uint32 | unsinged int   | 4 |
 
-というわけで、Uint8, Uint16, Uint24, Uint32 のクラスを作ります。
-さらに、抽象化するために Uint という抽象クラスも作ります。
+そこで、Uint8, Uint16, Uint24, Uint32 のクラスを作ります。
+共通する処理が出てくると思うので、Uint という抽象クラスも作ります。
+Uintの実装では次の機能を実装します。
 
-ここの実装で重要な点は、以下の処理の部分です。
+- Uint型をバイト列に変換する処理 `.__bytes__()`
+- バイト列からUint型を復元する処理 `.from_bytes()`
 
-- Uint型とバイト列で相互変換ができる
-  - `Uint16(0x0003)` <=> `b'\x00\x03'`
-- bytes(UintNのインスタンス) : Uint型をバイト列に変換します (`bytes()`)
-- UintN.from_bytes(バイト列) : バイト列からUint型を復元します (`from_bytes()`)
-
-実際のプログラムを以下に示します。
+作成したUintN型の期待する動作例を以下に示します。
 
 ```python
-import abc # 抽象基底クラス
-import struct # バイト列の解釈
-
-# UintNの抽象クラス
-class Uint(abc.ABC):
-    def __init__(self, value):
-        assert isinstance(value, int)
-        max_value = 1 << (8 * self.__class__.size)
-        assert 0 <= value < max_value
-        self.value = value
-
-    @abc.abstractmethod # 抽象メソッド
-    def __bytes__(self):
-        raise NotImplementedError()
-
-    @classmethod
-    @abc.abstractmethod # 抽象メソッド
-    def from_bytes(cls, data):
-        raise NotImplementedError()
-
-    def __len__(self):
-        return self.__class__.size
-
-    def __int__(self):
-        return self.value
-
-    def __eq__(self, other):
-        return hasattr(other, 'value') and self.value == other.value
-
-    def __repr__(self):
-        classname = self.__class__.__name__
-        value = self.value
-        width = self.__class__.size * 2
-        return "{}(0x{:0{width}x})".format(classname, value, width=width)
-
-
-class Uint8(Uint):
-    size = 1  # unsinged char
-
-    def __bytes__(self):
-        return struct.pack('>B', self.value)
-
-    @classmethod
-    def from_bytes(cls, data):
-        return Uint8(struct.unpack('>B', data)[0])
-
-class Uint16(Uint):
-    size = 2  # unsigned short
-
-    def __bytes__(self):
-        return struct.pack('>H', self.value)
-
-    @classmethod
-    def from_bytes(cls, data):
-        return Uint16(struct.unpack('>H', data)[0])
-
-class Uint24(Uint):
-    size = 3
-
-    def __bytes__(self):
-        return struct.pack('>BH', self.value >> 16, self.value & 0xffff)
-
-    @classmethod
-    def from_bytes(cls, data):
-        high, low = struct.unpack('>BH', data)
-        return Uint24((high << 16) + low)
-
-class Uint32(Uint):
-    size = 4  # unsigned int
-
-    def __bytes__(self):
-        return struct.pack('>I', self.value)
-
-    @classmethod
-    def from_bytes(cls, data):
-        return Uint32(struct.unpack('>I', data)[0])
+num = Uint16(0x1234)
+num_byte = b'\x12\x34'
+assert bytes(num) == num_byte
+assert num == Uint16.from_bytes(num_byte)
 ```
 
-UintNが正しく動くことを確認するためにテストも書きます。
-例えば Uint8(255) は成功しますが、Uint8(256) はオーバーフローするのでエラーを吐きます。
-また、bytes() で変換したものを UintN.from_bytes() で復元すると元に戻ることも確認します。
-これをテストに落とし込むと次のようになります。
-
-```python
-import unittest
-
-class TestUint(unittest.TestCase):
-
-    def test_uint8(self):
-        u = Uint8(255)
-        self.assertEqual(bytes(u), b'\xff')
-        # 変換して復元したものが元に戻るか確認する
-        self.assertEqual(Uint8.from_bytes(bytes(u)), u)
-
-    def test_uint8_out_range(self):
-        # 不正な値を入れたときにエラーになるか
-        with self.assertRaises(AssertionError) as cm:
-            u = Uint8(256)
-        with self.assertRaises(AssertionError) as cm:
-            u = Uint8(-1)
-
-unittest.main()
-```
-
-
-## opaque (バイト列)
+## Opaque型 (バイト列)
 
 RFC で使われる opaque はバイト列を格納する型です。
 opaque には固定長と可変長があります。
@@ -159,211 +57,137 @@ opaque stirng<0..2^32-1>; /* stringは0〜4294967295byte */
 - `opaque<0..2^16-1>` : データ長を表す部分(3byte) + データ(Nbyte)
 - `opaque<0..2^32-1>` : データ長を表す部分(4byte) + データ(Nbyte)
 
-というわけで、固定長の OpaqueFix と可変長の OpaqueVar という2つのクラスを作ります。
-さらに、これらをクラスはそれぞれサイズの情報をクラス定数として保持したいので、クラスの返す関数を作り、関数の中でクラスの定数としてサイズの情報を格納していきます。
+そこで、固定長の OpaqueFix と可変長の OpaqueVar という2つのクラスを作ります。
 
-ここの実装でやりたいことは、次のことです。
+- OpaqueFix クラスは固定長のバイト列を格納するので、引数でサイズ(整数)を受け取る。
+- OpaqueVar クラスは可変長のバイト列を格納するので、引数でデータ長を表す部分のサイズ(UintN)を受け取る。
 
-- OpaqueFix という固定長のバイト列を格納するクラスを作る。引数でサイズを受け取る。
-- OpaqueVar という可変長のバイト列を格納するクラスを作る。引数でデータ長を表す部分のサイズを受け取る。
-- OpaqueFix/OpaqueVar の構造体とバイト列は `bytes()` と `from_bytes()` で相互変換できる
-  - `OpaqueFix(4)(b'\x01\x23\x45\x67')` <=> `b'\x01\x23\x45\x67'`
-  - `OpaqueVar(Uint8)(b'\x01\x23\x45\x67')` <=> `b'\x04\x01\x23\x45\x67'`
-- 関数 Opaque で、クラスの定数を格納した OpaqueFix/OpaqueVar クラスを返す (高階関数を作る)
+それぞれのOpaqueの実装では次の機能を実装します。
 
-実際のプログラムを以下に示します。
+- Opaque型をバイト列に変換する処理 `.__bytes__()`
+- バイト列からOpaque型を復元する処理 `.from_bytes()`
+
+作成したOpaque型の期待する動作例を以下に示します。
 
 ```python
-def Opaque(size):
+# 固定長の場合
+Opaque4 = OpaqueFix(4)
+nonce = Opaque4(b'\xaa\xaa\xaa\xaa')
+nonce_byte = b'\xaa\xaa\xaa\xaa'
+assert bytes(nonce) == nonce_byte
+assert nonce == Opaque4.from_bytes(nonce)
 
-    # 固定長のOpaque (e.g. opaque string[16])
-    class OpaqueFix:
-        size = 0
-
-        def __init__(self, byte):
-            max_size = OpaqueFix.size
-            assert isinstance(byte, (bytes, bytearray))
-            assert len(byte) <= max_size
-            self.byte = byte.rjust(max_size, b'\x00')
-
-        def __bytes__(self):
-            return self.byte
-
-        @classmethod
-        def from_bytes(cls, data):
-            return OpaqueFix(data)
-
-        def __eq__(self, other):
-            return self.byte == other.byte
-
-        def __len__(self):
-            return len(self.byte)
-
-    # 可変長のOpaque (e.g. opaque string<0..15>)
-    class OpaqueVar:
-        size = None
-        size_t = Uint
-
-        def __init__(self, byte):
-            assert isinstance(byte, (bytes, bytearray))
-            size_t = OpaqueVar.size_t
-            self.byte = byte
-            self.size_t = size_t
-
-        def __bytes__(self):
-            UintN = self.size_t
-            return bytes(UintN(len(self.byte))) + self.byte
-
-        @classmethod
-        def from_bytes(cls, data):
-            size_t = OpaqueVar.size_t
-            f = io.BytesIO(data)
-            length = size_t.from_bytes(f.read(size_t.size))
-            byte   = f.read(int(length))
-            return OpaqueVar(byte)
-
-        def __eq__(self, other):
-            return self.byte == other.byte and self.size_t == other.size_t
-
-        def __len__(self):
-            return len(self.byte)
-
-    if isinstance(size, int): # 引数がintのときは固定長
-        OpaqueFix.size = size
-        return OpaqueFix
-    if issubclass(size, Uint): # 引数がUintNのときは可変長
-        OpaqueVar.size = None
-        OpaqueVar.size_t = size
-        return OpaqueVar
-    raise TypeError("size's type must be an int or Uint class.")
-```
-
-次にテストをします。
-OpaqueFixクラスのテストでは、最大N[byte]のときにM[byte]のバイト列を渡したときの振る舞いを確認すると共に、バイト列に変換して復元できるかの確認もします。
-OpaqueVarクラスのテストでは、バイト列に変換したときに、データ長を表す部分が正しくバイト列に反映されているか確認します。
-
-```python
-class TestUint(unittest.TestCase):
-
-    def test_opaque_fix(self):
-        # 4byteのOpaqueに対して、4byteのバイト列を渡す
-        Opaque4 = Opaque(4)
-        o = Opaque4(b'\x01\x23\x45\x67')
-        self.assertEqual(bytes(o), b'\x01\x23\x45\x67')
-        self.assertEqual(Opaque4.from_bytes(bytes(o)), o)
-
-        # 8byteのOpaqueに対して、4byteのバイト列を渡す
-        Opaque8 = Opaque(8)
-        o = Opaque8(b'\x01\x23\x45\x67')
-        self.assertEqual(bytes(o), b'\x00\x00\x00\x00\x01\x23\x45\x67')
-        self.assertEqual(Opaque8.from_bytes(bytes(o)), o)
-
-    def test_opaque_fix_invalid_args(self):
-        # 4byteのOpaqueに対して、5byteのバイト列を渡す
-        Opaque4 = Opaque(4)
-        with self.assertRaises(Exception) as cm:
-            o = Opaque4(b'\x01\x23\x45\x67\x89')
-
-    def test_opaque_var(self):
-        # 可変長のOpaqueでデータ長を表す部分がUint8のとき
-        OpaqueVar1 = Opaque(Uint8)
-        o = OpaqueVar1(b'\x01\x23\x45\x67')
-        self.assertEqual(bytes(o), b'\x04\x01\x23\x45\x67')
-        self.assertEqual(OpaqueVar1.from_bytes(bytes(o)), o)
-
-        # 可変長のOpaqueでデータ長を表す部分がUint16のとき
-        OpaqueVar2 = Opaque(Uint16)
-        o = OpaqueVar2(b'\x01\x23\x45\x67')
-        self.assertEqual(bytes(o), b'\x00\x04\x01\x23\x45\x67')
-        self.assertEqual(OpaqueVar2.from_bytes(bytes(o)), o)
+# 可変長の場合
+OpaqueUint8 = OpaqueVar(Uint8)
+session_id = OpaqueUint8(b'\xbb\xbb\xbb\xbb')
+session_id_byte = b'\x04\xbb\xbb\xbb\xbb'
+assert bytes(session_id) == session_id_byte
+assert session_id == OpaqueUint8.from_bytes(session_id_byte)
 ```
 
 
-## 配列
+## List型 (ベクタ型, 配列)
 
-配列には2種類あります。要素が固定長の配列と、要素が可変長の配列です。
+ベクタ型には2種類あります。要素が固定長のものと、要素が可変長のものです。
+要素が固定長の場合は比較的実装が楽なのですが、要素が可変長の場合は今のままでは大変ですので、今まで実装してきたUint型とOpaque型について少し変更を加えます。
+
+### .from_bytes → .from_fs
+
+今まではバイト列から型を復元していましたが、ここではストリームから型を復元するように変更します。
+ストリームとはバイトシーケンスへの読み書きを提供するものです。
+例えばストリームに対して .read(2) をすると最初の2バイトを読みます。再び .read(2) をすると、1回目で読み取った場所の最後の一から2バイト読みます。
+簡単なプログラムを書くと以下のようになります。
 
 ```python
-def List(elem_t, size_t):
-
-    class List:
-        size = None
-        size_t = Uint
-        elem_t = None # Elements' Type
-
-        def __init__(self, array):
-            self.array = array
-
-        def __bytes__(self):
-            size_t = List.size_t
-            buffer = bytearray(0)
-            buffer += bytes(size_t(sum(map(len, self.array))))
-            buffer += b''.join(bytes(elem) for elem in self.array)
-            return bytes(buffer)
-
-        @classmethod
-        def from_bytes(cls, data):
-            size_t = cls.size_t
-            elem_t = cls.elem_t
-            f = io.BytesIO(data)
-            list_size = int(size_t.from_bytes(f.read(size_t.size)))
-            elem_size = elem_t.size
-
-            if elem_t.size: # 要素が固定長の場合
-                array = []
-                for i in range(list_size // elem_size): # 要素数
-                    array.append(elem_t.from_bytes(f.read(elem_t.size)))
-                return List(array)
-
-            else: # 要素が可変長の場合
-                array = []
-                while True:
-                    tmp = f.read(elem_t.size_t.size)       # 要素の長さを取得
-                    if tmp == b'': break
-                    elem_len = int(size_t.from_bytes(tmp)) # 要素の長さを取得
-                    elem     = elem_t(f.read(elem_len))    # 要素の内容を取得
-                    array.append(elem)
-                return List(array)
-
-        def __eq__(self, other):
-            assert isinstance(other, List)
-            if len(self.array) != len(other.array):
-                return False
-            for self_elem, other_elem in zip(self.array, other.array):
-                if self_elem != other_elem:
-                    return False
-            return True
-
-    List.size_t = size_t
-    List.elem_t = elem_t
-    return List
+import io
+f = io.BytesIO(b'abcdefg')
+f.read(2) # => b'ab'
+f.read(2) # => b'cd'
+f.read(3) # => b'efg'
 ```
 
-次にテストをします。
+次に、Uint型とOpaque型もストリーム型から型を復元するように関数を変更します。
+期待する動作は以下の通りです。
 
 ```python
-class TestUint(unittest.TestCase):
-    def test_list_fix(self):
-        ListUint16 = List(size_t=Uint8, elem_t=Uint16)
-        l = ListUint16([])
-        self.assertEqual(bytes(l), b'\x00')
-        self.assertEqual(ListUint16.from_bytes(bytes(l)), l)
+import io
 
-        ListUint16 = List(size_t=Uint8, elem_t=Uint16)
-        l = ListUint16([Uint16(1), Uint16(2), Uint16(65535)])
-        self.assertEqual(bytes(l), b'\x06\x00\x01\x00\x02\xff\xff')
-        self.assertEqual(ListUint16.from_bytes(bytes(l)), l)
+# Uint型
+f = io.BytesIO(b'\x11\x22\x33\x44')
+value1 = Uint8.from_fs(f)  # => Uint8(0x11)
+value2 = Uint16.from_fs(f) # => Uint16(0x2233)
 
-        Opaque2 = Opaque(2)
-        ListOpaque2 = List(size_t=Uint8, elem_t=Opaque2)
-        l = ListOpaque2([Opaque2(b'\xdd\xdd'), Opaque2(b'\xff\xff')])
-        self.assertEqual(bytes(l), b'\x04\xdd\xdd\xff\xff')
-        self.assertEqual(ListOpaque2.from_bytes(bytes(l)), l)
+# Opaque型
+f = io.BytesIO(b'\x02\xaa\xaa\x03\xbb\xbb\xbb')
+value1 = OpaqueUint8(f)  #=> Opaque<Uint8>(b'\xaa\xaa')
+value2 = OpaqueUint8(f)  #=> Opaque<Uint8>(b'\xbb\xbb\xbb')
+```
 
-    def test_list_var(self):
-        OpaqueUint8 = Opaque(Uint8)
-        ListOpaqueUint8 = List(size_t=Uint8, elem_t=OpaqueUint8)
-        l = ListOpaqueUint8([OpaqueUint8(b'\x12\x12'), OpaqueUint8(b'\xff\xff')])
-        self.assertEqual(bytes(l), b'\x04\x02\x12\x12\x02\xff\xff')
-        self.assertEqual(ListOpaqueUint8.from_bytes(bytes(l)), l)
+また、今までの .from_bytes も使えるようにするために、全ての型の親クラスとして `Type` クラスを作り、ここで .from_bytes が呼ばれたら引数のバイト列をストリームに変換して .from_fs を呼び出すようにしておきます。なぜこうするかというと、バイト列から型を復元できるのテストをするときに便利だからです。
+
+```python
+class Type:
+    @classmethod
+    def from_bytes(cls, data):
+        return cls.from_fs(io.BytesIO(data))
+
+class Uint(Type):
+    ...
+
+class Opaque(Type):
+    ...
+```
+
+### List型の実装
+
+.from_fs ができた上でList型を実装していきます。
+List型とは「Listの長さを表す部分」と「Listの各要素の部分」から構成されています。
+よって、型をバイト列に変換するときは、OpaqueVar型と同じようにList型の各要素のバイト列の長さをUint型で表したものをバイト列の先頭に付け加えます。
+逆にバイト列からList型を復元するときは、先頭にある長さを読み取ってから、その長さの分だけ要素の型で .from_fs を繰り返すだけです。
+簡単なプログラム例として、List型のサイズを表す型を `size_t`、 List型の要素の型を `elem_t` とすると以下のように書くことができます。
+
+```python
+def from_fs(fs):
+    ...
+    list_size = int(size_t.from_fs(fs)) # リスト全体の長さ
+    array = []
+    # 現在のストリーム位置が全体の長さを超えない間、繰り返し行う
+    startpos = fs.tell()
+    while (fs.tell() - startpos) < list_size:
+        elem = elem_t.from_fs(fs, parent)
+        array.append(elem)
+    ...
+```
+
+作成したList型の期待する動作例を以下に示します。
+
+```python
+OpaqueUint8 = OpaqueVar(Uint8)
+OpaqueUint8s = List(size_t=Uint8, elem_t=OpaqueUint8)
+sample = OpaqueUint8s([
+    OpaqueUint8(0xaa),
+    OpaqueUint8(0xbbbb),
+])
+sample_byte = b'\x05\x01\xaa\x02\xbb\xbb'
+assert bytes(sample) == sample_byte
+assert sample == OpaqueUint8s.from_bytes(sample_byte)
+```
+
+### Enum型
+
+Enum型(列挙型)は、TLSバージョンや暗号スイートを表すために使われます。
+作成したEnum型の期待する動作例を以下に示します。
+
+```python
+class ContentType(Enum):
+    elem_t = Uint8
+
+    alert = Uint8(0x15)
+    handshake = Uint8(0x16)
+    application_data = Uint8(0x17)
+
+assert ContentType.handshake == Uint8(0x16)
+
+assert bytes(ContentType.handshake) == b'\x16'
+assert ContentType.handshake == ContentType.from_bytes(b'\x16')
 ```
