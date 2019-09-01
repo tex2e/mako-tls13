@@ -19,6 +19,15 @@ class TLSPlaintext(meta.StructMeta):
     length: Uint16 = lambda self: Uint16(len(bytes(self.fragment)))
     fragment: OpaqueLength
 
+    @classmethod
+    def create(self, content_type, *messages):
+        assert isinstance(content_type, ContentType)
+        messages_byte = b''.join(bytes(msg) for msg in messages)
+        return TLSPlaintext(
+            type=content_type,
+            fragment=OpaqueLength(messages_byte)
+        )
+
     def encrypt(self, cipher_instance):
         msg_pad = TLSInnerPlaintext.append_pad(self)
         tag_size = cipher_instance.__class__.tag_size
@@ -29,12 +38,12 @@ class TLSPlaintext(meta.StructMeta):
         )
 
     def get_messages(self):
-        dict = {
-            ContentType.handshake: Handshake,
+        contenttype2class = {
+            ContentType.handshake:          Handshake,
             ContentType.change_cipher_spec: OpaqueLength,
-            ContentType.alert: Alert,
+            ContentType.alert:              Alert,
         }
-        elem_t = dict.get(self.type)
+        elem_t = contenttype2class.get(self.type)
 
         # 複数のHandshakeメッセージは結合して一つのTLSPlaintextで送ることができる
         # https://tools.ietf.org/html/rfc8446#section-5.1

@@ -87,15 +87,10 @@ client_hello = Handshake(
 )
 ctx.append_msg(client_hello)
 
-tlsplaintext = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=OpaqueLength(bytes(client_hello))
-)
-
+tlsplaintext = TLSPlaintext.create(ContentType.handshake, client_hello)
 print(tlsplaintext)
 print('[>>>] Send:')
 print(hexdump(bytes(tlsplaintext)))
-
 client_conn = connection.ClientConnection('localhost', 50007)
 # client_conn = connection.ClientConnection('enabled.tls13.com', 443)
 # '''
@@ -208,15 +203,10 @@ finished = Handshake(
 )
 print(finished)
 
-tlsplaintext = TLSPlaintext(
-    type=ContentType.handshake,
-    fragment=OpaqueLength(bytes(finished))
-)
-
-tlsciphertext = tlsplaintext.encrypt(ctx.client_traffic_crypto)
+tlsciphertext = TLSPlaintext.create(ContentType.handshake, finished) \
+    .encrypt(ctx.client_traffic_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
-
 client_conn.send_msg(bytes(tlsciphertext))
 
 # Key Schedule
@@ -245,14 +235,10 @@ try:
 
             # 受信待機時にクライアント側から入力があれば送信する
             if inputQueue.qsize() > 0:
-                input_str = inputQueue.get()
-                app_data = TLSPlaintext(
-                    type=ContentType.application_data,
-                    fragment=OpaqueLength(input_str.encode())
-                )
-                print(hexdump(bytes(app_data)))
-
-                tlsciphertext = app_data.encrypt(ctx.client_app_data_crypto)
+                input_byte = inputQueue.get().encode()
+                tlsciphertext = \
+                    TLSPlaintext.create(ContentType.application_data, input_byte) \
+                    .encrypt(ctx.client_app_data_crypto)
                 print(tlsciphertext)
                 print('[>>>] Send:')
                 print(hexdump(bytes(tlsciphertext)))
@@ -304,11 +290,8 @@ closure_alert = Alert(
     description=AlertDescription.close_notify
 )
 
-tlsplaintext = TLSPlaintext(
-    type=ContentType.alert,
-    fragment=closure_alert
-)
-tlsciphertext = tlsplaintext.encrypt(ctx.client_app_data_crypto)
+tlsciphertext = TLSPlaintext.create(ContentType.alert, closure_alert) \
+    .encrypt(ctx.client_app_data_crypto)
 print(tlsciphertext)
 print(hexdump(bytes(tlsciphertext)))
 client_conn.send_msg(bytes(tlsciphertext))
