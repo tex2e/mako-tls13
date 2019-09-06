@@ -141,7 +141,8 @@ class Opaque(Type):
 ### List型の実装
 
 .from_fs ができた上でList型を実装していきます。
-List型とは「Listの長さを表す部分」と「Listの各要素の部分」から構成されています。
+他の型と同様に `.__bytes__()` と `.from_bytes()` を作成します。
+List型は「Listの長さを表す部分」と「Listの各要素の部分」から構成されています。
 よって、型をバイト列に変換するときは、OpaqueVar型と同じようにList型の各要素のバイト列の長さをUint型で表したものをバイト列の先頭に付け加えます。
 逆にバイト列からList型を復元するときは、先頭にある長さを読み取ってから、その長さの分だけ要素の型で .from_fs を繰り返すだけです。
 簡単なプログラム例として、List型のサイズを表す型を `size_t`、 List型の要素の型を `elem_t` とすると以下のように書くことができます。
@@ -173,21 +174,44 @@ assert bytes(sample) == sample_byte
 assert sample == OpaqueUint8s.from_bytes(sample_byte)
 ```
 
-### Enum型
+## Enum型 (列挙型)
 
-Enum型(列挙型)は、TLSバージョンや暗号スイートを表すために使われます。
-作成したEnum型の期待する動作例を以下に示します。
+Enum型は、TLSバージョンや暗号スイートを表すために使われます。
+例えば TLS の ContentType には5種類のステータスがあります。
+
+```
+enum {
+    invalid(0),
+    change_cipher_spec(20),
+    alert(21),
+    handshake(22),
+    application_data(23),
+    (255)
+} ContentType;
+```
+
+上のRFC記法をPythonで表現するときに以下のような形にしたいと思います。
 
 ```python
 class ContentType(Enum):
     elem_t = Uint8
 
-    alert = Uint8(0x15)
+    invalid = Uint8(0)
+    change_cipher_spec = Uint8(20)
+    alert = Uint8(21)
+    handshake = Uint8(22)
+    application_data = Uint8(23)
+```
+
+他の型と同様に `.__bytes__()` と `.from_bytes()` を作成します。
+作成したEnum型の期待する動作例を以下に示します。
+
+```python
+class ContentType(Enum):
+    elem_t = Uint8
     handshake = Uint8(0x16)
-    application_data = Uint8(0x17)
 
 assert ContentType.handshake == Uint8(0x16)
-
 assert bytes(ContentType.handshake) == b'\x16'
 assert ContentType.handshake == ContentType.from_bytes(b'\x16')
 ```
