@@ -190,7 +190,7 @@ enum {
 } ContentType;
 ```
 
-上のRFC記法をPythonで表現するときに以下のような形にしたいと思います。
+上のRFC記法をPythonで表現するときは以下のようなプログラムにしたいと思います。
 
 ```python
 class ContentType(Enum):

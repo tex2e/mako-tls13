@@ -46,11 +46,11 @@ entries:
       - title: プロトコルの概要
         url: /protocol_overview.html
 
-      - title: プロトコルの構造体
-        url: /handshake_protocol.html
-
       - title: データ構造とバイト列の変換
         url: /protocol_structs_and_bytes.html
+
+      - title: プロトコルの構造体
+        url: /handshake_protocol.html
 
       - title: TLS拡張
         url: /extensions.html
