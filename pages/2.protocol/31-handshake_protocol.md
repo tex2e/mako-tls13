@@ -23,7 +23,21 @@ TLSPlaintext
 # レコード層 (Record Layer)
 
 レコード層はTLSパケットの一番下の層のことです。
-TLSの全てのメッセージは、ここで説明する TLSPlaintext または TLSCiphertext のどちらかに格納されて送信されます。
+TLSレコードとも呼ばれ、コネクション上でやりとりされるメッセージなどは全てTLSレコードによって送受信されます。
+TLSレコードの先頭にはヘッダがあり、コンテンツの種類(ContentType)、プロトコルのバージョン(ProtocolVersion)、レコード長の3つの情報が格納されています。
+その後に、メッセージのデータが続きます。
+
+```
+      [ ContentType | ProtocolVersion | length ]
+          |
+          |
+      +---V----+--------------+
+      | header | message data |
+      +--------+--------------+
+```
+
+TLSの全てのメッセージは、以下で説明する TLSPlaintext または TLSCiphertext のどちらかに格納されて送信されます。
+TLSレコードの構造体は TLSPlaintext と TLSCiphertext の2種類ありますが、どちらも構造は同じです。
 
 ## TLSPlaintext
 
@@ -80,6 +94,9 @@ class TLSPlaintext(meta.StructMeta):
     fragment: OpaqueLength
 ```
 
+TLS 1.3 では ServerHello メッセージ以降に送信するメッセージは必ず暗号化されるので Change Cipher Spec プロトコルは必要ありませんが、ポステルの法則「送信は厳密に、受信は寛容に」に基づいて、ChangeCipherSpecを受信してもエラーにしないで無視するだけにします。
+
+
 ## TLSCiphertext
 
 TLSCiphertext 構造体は暗号化したメッセージを送信するための構造体です。
@@ -131,6 +148,31 @@ class TLSCiphertext(meta.StructMeta):
 # ハンドシェイクプロトコル
 
 ハンドシェイクに関連するメッセージは Handshake 構造体を使います。
+ハンドシェイクプロトコルにはヘッダがあり、ハンドシェイクの種類(HandshakeType)とメッセージ長を格納しています。
+
+```
+    [ HandshakeType | length ]
+        |
+        |
+    +---V----+--------------+
+    | header | message data |
+    +--------+--------------+
+```
+
+ハンドシェイクプロトコルをTLSレコードに格納すると、16進数データ上では次のようになります。
+
+```
+ContentType
+|    ProtocolVersion
+|    |     レコード長(length)
+|    |     |   HandshakeType
+|    |     |   |    メッセージ長(length)
+|    |     |   |    |       message data...
+V  <---> <---> V  <------> <--------------->
+16 03 03 02 00 01 00 01 fc ...
+```
+
+Wiresharkなどでパケットキャプチャをすると、上のような構造になっていることを確認することができます。
 
 ## Handshake
 
