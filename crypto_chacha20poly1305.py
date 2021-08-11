@@ -25,10 +25,10 @@ class F2_32:
         return int(self.val)
 
 def quarter_round(a: F2_32, b: F2_32, c: F2_32, d: F2_32):
-    a += b; d ^= a; d <<= 16;
-    c += d; b ^= c; b <<= 12;
-    a += b; d ^= a; d <<= 8;
-    c += d; b ^= c; b <<= 7;
+    a += b; d ^= a; d <<= 16
+    c += d; b ^= c; b <<= 12
+    a += b; d ^= a; d <<= 8
+    c += d; b ^= c; b <<= 7
     return a, b, c, d
 
 def Qround(state: List[F2_32], idx1, idx2, idx3, idx4):
@@ -213,6 +213,7 @@ class Chacha20Poly1305(Cipher):
         return plaintext
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
     import unittest
 

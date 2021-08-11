@@ -26,6 +26,7 @@ class Handshake(meta.StructMeta):
     })
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     from protocol_hello import Random, OpaqueUint8, CipherSuite, CipherSuites

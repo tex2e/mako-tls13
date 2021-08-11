@@ -57,13 +57,13 @@ for msg in TLSPlaintext.from_fs(stream).get_messages():
     print(hexdump(bytes(msg)))
     ctx.append_msg(msg)
 
-# CipherSuite は chacha20poly1305 しか対応していないので
+# この開発環境では、CipherSuite は chacha20poly1305 しか対応していないので
 client_hello = ctx.tls_messages.get(HandshakeType.client_hello)
 has_chacha20poly1305 = client_hello.msg.cipher_suites \
     .find(lambda suite: suite == CipherSuite.TLS_CHACHA20_POLY1305_SHA256)
 if not has_chacha20poly1305:
     print('handshake_failure')
-    sys.exit(0)
+    sys.exit(0) # 本来ならAlertメッセージで終了しないといけない
 
 server_hello = Handshake(
     msg_type=HandshakeType.server_hello,
@@ -131,7 +131,7 @@ print(certificate)
 print(hexdump(bytes(certificate)))
 
 # create CertificateVerify
-# 秘密鍵 cert/server.key を使って証明書に署名する
+# 秘密鍵 cert/server.key を使って証明書を含む今までのメッセージ全体に対して署名する
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 key = RSA.importKey(open('cert/server.key').read())
@@ -141,6 +141,7 @@ client_signature_scheme_list = \
     .extension_data.supported_signature_algorithms
 print(client_signature_scheme_list)
 
+# RSA-PSS署名
 if SignatureScheme.rsa_pss_rsae_sha256 in client_signature_scheme_list:
     server_signature_scheme = SignatureScheme.rsa_pss_rsae_sha256
     from Crypto.Signature import PKCS1_PSS

@@ -23,6 +23,7 @@ class SupportedVersions(meta.StructMeta):
     })
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     from protocol_handshake import Handshake

@@ -34,7 +34,7 @@ class SignatureScheme(Enum):
     ecdsa_sha1 = Uint16(0x0203)
 
     # Reserved Code Points
-    # private_use = Uint16(0xFE00)..Uint16(0xFFFF)
+    #private_use = Uint16(0xFE00)..Uint16(0xFFFF)
 
 SignatureSchemes = List(size_t=Uint16, elem_t=SignatureScheme)
 

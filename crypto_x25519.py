@@ -143,6 +143,7 @@ def x448(k: bytes, u: bytes = encodeUCoordinate(5, bits=448)):
     return encodeUCoordinate(int(res), bits)
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
     # Test Vectors
     # https://tools.ietf.org/html/rfc7748#section-5.2

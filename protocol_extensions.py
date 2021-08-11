@@ -22,13 +22,13 @@ class ExtensionType(EnumUnknown):
     client_certificate_type = Uint16(19)
     server_certificate_type = Uint16(20)
     padding = Uint16(21)
-    # RESERVED = Uint16(40)
+    #RESERVED = Uint16(40)
     pre_shared_key = Uint16(41)
     early_data = Uint16(42)
     supported_versions = Uint16(43)
     cookie = Uint16(44)
     psk_key_exchange_modes = Uint16(45)
-    # RESERVED = Uint16(46)
+    #RESERVED = Uint16(46)
     certificate_authorities = Uint16(47)
     oid_filters = Uint16(48)
     post_handshake_auth = Uint16(49)
@@ -57,6 +57,7 @@ class EncryptedExtensions(meta.StructMeta):
     extensions: Extensions
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     from protocol_ext_supportedgroups import NamedGroups, NamedGroup

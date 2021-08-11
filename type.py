@@ -14,6 +14,11 @@ class Type:
     def from_bytes(cls, data):
         return cls.from_fs(io.BytesIO(data))
 
+    # 抽象クラス以外は必ず上書きすること
+    @classmethod
+    def from_fs(cls, fs, parent=None):
+        raise NotImplementedError
+
     # 構造体の構築時には、Opaqueは親インスタンスを参照できるようにする。
     def set_parent(self, instance):
         self.parent = instance

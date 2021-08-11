@@ -43,6 +43,7 @@ class Finished(meta.StructMeta):
     verify_data: OpaqueHash
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     import unittest

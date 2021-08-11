@@ -9,6 +9,8 @@ import dataclasses
 # TLSメッセージの構造体を表すためのクラス群
 # 使い方：
 #
+#   import structmeta as meta
+#
 #   @meta.struct
 #   class ClientHello(meta.StructMeta):
 #       legacy_version: ProtocolVersion

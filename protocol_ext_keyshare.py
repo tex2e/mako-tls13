@@ -20,6 +20,7 @@ class KeyShareHello(meta.StructMeta):
     })
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
     import unittest
 

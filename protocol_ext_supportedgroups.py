@@ -10,11 +10,11 @@ class NamedGroup(Enum):
     elem_t = Uint16
 
     # Elliptic Curve Groups (ECDHE)
-    # obsolete_RESERVED = Uint16(0x0001)..Uint16(0x0016)
+    #obsolete_RESERVED = Uint16(0x0001)..Uint16(0x0016)
     secp256r1 = Uint16(0x0017)
     secp384r1 = Uint16(0x0018)
     secp521r1 = Uint16(0x0019)
-    # obsolete_RESERVED = Uint16(0x001A)..Uint16(0x001C)
+    #obsolete_RESERVED = Uint16(0x001A)..Uint16(0x001C)
     x25519 = Uint16(0x001D)
     x448 = Uint16(0x001E)
 
@@ -27,9 +27,9 @@ class NamedGroup(Enum):
     ffdhe8192 = Uint16(0x0104)
 
     # Reserved Code Points
-    # ffdhe_private_use = Uint16(0x01FC)..Uint16(0x01FF)
-    # ecdhe_private_use = Uint16(0xFE00)..Uint16(0xFEFF)
-    # obsolete_RESERVED = Uint16(0xFF01)..Uint16(0xFF02)
+    #ffdhe_private_use = Uint16(0x01FC)..Uint16(0x01FF)
+    #ecdhe_private_use = Uint16(0xFE00)..Uint16(0xFEFF)
+    #obsolete_RESERVED = Uint16(0xFF01)..Uint16(0xFF02)
 
 NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 
