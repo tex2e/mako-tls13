@@ -1,23 +1,30 @@
+# ------------------------------------------------------------------------------
+# Hash-Based Key Derivation Function
+#   - RFC 5869 (HMAC-based Extract-and-Expand Key Derivation Function (HKDF))
+#     * https://datatracker.ietf.org/doc/html/rfc5869#section-2.2
+#     * https://datatracker.ietf.org/doc/html/rfc5869#section-2.3
+#   - RFC 8446 (The Transport Layer Security (TLS) Protocol Version 1.3)
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-7.1
+# ------------------------------------------------------------------------------
 
 import hmac
 import hashlib
-
 from type import Uint8, Uint16, Opaque
 OpaqueUint8 = Opaque(Uint8)
 
-def divceil(n, d) -> int:
+def divceil(n: int, d: int) -> int:
     q, r = divmod(n, d)
     return q + bool(r)
 
-def secure_hash(data, hash_name='sha256') -> bytearray:
+def secure_hash(data: bytes, hash_name='sha256') -> bytearray:
     h = hashlib.new(hash_name)
     h.update(data)
     return bytearray(h.digest())
 
-def secure_HMAC(key, msg, hash_name='sha256') -> bytearray:
+def secure_HMAC(key: bytes, msg: bytes, hash_name='sha256') -> bytearray:
     return bytearray(hmac.new(key, msg, getattr(hashlib, hash_name)).digest())
 
-def HKDF_extract(salt, IKM, hash_name='sha256') -> bytearray:
+def HKDF_extract(salt: bytes, IKM: bytes, hash_name='sha256') -> bytearray:
     # HKDF (https://tools.ietf.org/html/rfc5869#section-2.2)
     #
     #     HKDF-Extract(salt, IKM) -> PRK
@@ -35,7 +42,7 @@ def HKDF_extract(salt, IKM, hash_name='sha256') -> bytearray:
     #
     return secure_HMAC(salt, IKM, hash_name)
 
-def HKDF_expand(PRK, info, L, hash_name='sha256') -> bytearray:
+def HKDF_expand(PRK: bytes, info: bytes, l: int, hash_name='sha256') -> bytearray:
     # HKDF (https://tools.ietf.org/html/rfc5869#section-2.3)
     #
     #     HKDF-Expand(PRK, info, L) -> OKM
@@ -62,15 +69,15 @@ def HKDF_expand(PRK, info, L, hash_name='sha256') -> bytearray:
     #     T(3) = HMAC-Hash(PRK, T(2) | info | 0x03)
     #     ...
     #
-    N = divceil(L, getattr(hashlib, hash_name)().digest_size)
-    T      = bytearray()
-    T_prev = bytearray()
-    for x in range(1, N+2):
-        T += T_prev
-        T_prev = secure_HMAC(PRK, T_prev + info + bytearray([x]), hash_name)
-    return T[:L]
+    n = divceil(l, getattr(hashlib, hash_name)().digest_size)
+    t      = bytearray()
+    t_prev = bytearray()
+    for x in range(1, n+2):
+        t += t_prev
+        t_prev = secure_HMAC(PRK, t_prev + info + bytearray([x]), hash_name)
+    return t[:l]
 
-def HKDF_expand_label(secret, label, hash_value, length,
+def HKDF_expand_label(secret: bytes, label: bytes, hash_value: bytes, length: int,
                       hash_name='sha256') -> bytearray:
     # HKDF-Expand-Label (https://tools.ietf.org/html/rfc8446#section-7.1)
     #
@@ -95,7 +102,7 @@ def HKDF_expand_label(secret, label, hash_value, length,
     # print('- [-] out:', out.hex())
     return out
 
-def derive_secret(secret, label, messages, hash_name='sha256') -> bytearray:
+def derive_secret(secret: bytes, label: bytes, messages: bytes, hash_name='sha256') -> bytearray:
     # Derive-Secret (https://tools.ietf.org/html/rfc8446#section-7.1)
     #
     #     Derive-Secret(Secret, Label, Messages) =
@@ -106,7 +113,7 @@ def derive_secret(secret, label, messages, hash_name='sha256') -> bytearray:
     hash_size = getattr(hashlib, hash_name)().digest_size
     return HKDF_expand_label(secret, label, hash_value, hash_size, hash_name)
 
-def transcript_hash(messages, hash_name='sha256') -> bytearray:
+def transcript_hash(messages: bytes, hash_name='sha256') -> bytearray:
     # Transcript Hash (https://tools.ietf.org/html/rfc8446#section-4.4.1)
     #
     #     Transcript-Hash(M1, M2, ... Mn) = Hash(M1 || M2 || ... || Mn)
@@ -115,10 +122,10 @@ def transcript_hash(messages, hash_name='sha256') -> bytearray:
     assert isinstance(messages, (bytes, bytearray))
     return secure_hash(messages, hash_name)
 
-def gen_key_and_iv(secret, key_size, nonce_size, hash_name='sha256'):
+def gen_key_and_iv(secret: bytes, key_size: bytes, nonce_size: int, hash_name='sha256') -> list[bytes]:
     write_key = HKDF_expand_label(secret, b'key', b'', key_size,   hash_name)
     write_iv  = HKDF_expand_label(secret, b'iv',  b'', nonce_size, hash_name)
     return write_key, write_iv
 
-def hash_size(hash_name):
+def hash_size(hash_name: str) -> int:
     return getattr(hashlib, hash_name)().digest_size

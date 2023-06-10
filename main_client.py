@@ -1,5 +1,6 @@
-
-# python 3.7 >= is required!
+# ------------------------------------------------------------------------------
+# TLS 1.3 Client
+# ------------------------------------------------------------------------------
 
 import os
 import sys
@@ -8,12 +9,12 @@ import threading
 import queue
 
 import connection
-from type import Uint8, Uint16, OpaqueUint16, OpaqueLength
+from type import Uint8, Uint16, OpaqueUint16
 from disp import hexdump
 
 from protocol_tlscontext import TLSContext
 from protocol_types import ContentType, HandshakeType
-from protocol_recordlayer import TLSPlaintext, TLSCiphertext, TLSInnerPlaintext
+from protocol_recordlayer import TLSPlaintext, TLSCiphertext
 from protocol_handshake import Handshake
 from protocol_hello import ClientHello
 from protocol_ciphersuite import CipherSuites, CipherSuite
@@ -28,11 +29,12 @@ from protocol_authentication import Finished, Hash, OpaqueHash
 from protocol_alert import Alert, AlertLevel, AlertDescription
 
 from crypto_ecdhe import x25519
-from crypto_ffdhe import FFDHE, ffdhekex
+from crypto_ffdhe import FFDHE
 import crypto_hkdf as hkdf
 
 ctx = TLSContext('client')
 
+# === Key Exchange Parameters ===
 dhkex_class1 = x25519
 secret_key1 = os.urandom(32)
 public_key1 = dhkex_class1(secret_key1)
@@ -40,7 +42,7 @@ public_key1 = dhkex_class1(secret_key1)
 ffdhe4096 = FFDHE('ffdhe4096')
 secret_key2 = ffdhe4096.get_secret_key()
 public_key2 = ffdhe4096.gen_public_key()
-dhkex_class2 = ffdhekex(ffdhe4096)
+dhkex_class2 = FFDHE.get_dhkey(ffdhe4096)
 
 dhkex_classes = {
     NamedGroup.x25519: dhkex_class1,
@@ -51,6 +53,7 @@ secret_keys = {
     NamedGroup.ffdhe4096: secret_key2
 }
 
+# === Client Hello ====
 client_hello = Handshake(
     msg_type=HandshakeType.client_hello,
     msg=ClientHello(

@@ -1,9 +1,8 @@
-
-# RFC 7748
-# Elliptic Curves for Security
-#
-# https://tools.ietf.org/html/rfc7748
-# https://www.rfc-editor.org/errata_search.php?rfc=7748
+# ------------------------------------------------------------------------------
+# Ephemeral Elliptic Curve Diffie-Hellman
+#   - RFC 7748 (Elliptic Curves for Security)
+#     * https://datatracker.ietf.org/doc/html/rfc7748
+# ------------------------------------------------------------------------------
 
 # Usage:
 #

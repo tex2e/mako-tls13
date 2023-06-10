@@ -1,10 +1,13 @@
+# ------------------------------------------------------------------------------
+# Hex Dump
+# ------------------------------------------------------------------------------
 
 import binascii
 
-def hexdump(data) -> str:
+def hexdump(data: bytes) -> str:
     return '\n'.join(__dumpgen(data))
 
-def __dumpgen(data):
+def __dumpgen(data: bytes) -> str:
     # Generator that produces strings (addr, hexstr, ascii):
     # 00000000: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
     generator = __chunks(data, 16)
@@ -31,15 +34,15 @@ def __dumpgen(data):
         yield line
 
 # list(chunks([1,2,3,4,5,6,7], 3)) #=> [[1, 2, 3], [4, 5, 6], [7]]
-def __chunks(seq, size):
+def __chunks(seq: list, size: int) -> list:
     d, m = divmod(len(seq), size)
     for i in range(d):
         yield seq[i*size:(i+1)*size]
     if m:
         yield seq[d*size:]
 
-def __dump(binary, size=2, sep=' '):
+def __dump(binary: bytes, size=2, sep=' ') -> str:
     return sep.join(__chunks(__hexstr(binary).upper(), size))
 
-def __hexstr(binary):
+def __hexstr(binary: bytes) -> str:
     return binascii.hexlify(binary).decode('ascii')

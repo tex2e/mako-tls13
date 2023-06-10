@@ -1,26 +1,66 @@
+# ------------------------------------------------------------------------------
+# Finite Field Ephemeral Diffie-Hellman
+#   - RFC 7919 (Negotiated Finite Field Diffie-Hellman Ephemeral Parameters for Transport Layer Security (TLS))
+#     * https://datatracker.ietf.org/doc/html/rfc7919#appendix-A
+# ------------------------------------------------------------------------------
 
-### https://tools.ietf.org/html/rfc7919#appendix-A ###
-
-
-
-# p = 2^b - 2^{b-64} + {[2^{b-130} e] + X } * 2^64 - 1 ;
-#   where b is the number of bits, e is base of natural logarithm,
-# X is lowest number that is satisfied p is safe prime.
-# [ ] means floor function.
-#
 # Public key MUST be chosen [2, ..., p-2]
 # Secret keys (ServerSecretKey, ClientSecretKey) also will be [2, ..., p-2]
 
 import os
+import struct
 from type import Uint16
-from Crypto.Util.number import long_to_bytes, bytes_to_long
 
-def get_random_bytes(howMany):
+def long_to_bytes(n:int, blocksize:int=0) -> bytes:
+    """
+    Convert a long integer to a byte string.
+
+    If optional blocksize is given and greater than zero, pad the front of the
+    byte string with binary zeros so that the length is a multiple of
+    blocksize.
+    """
+    # after much testing, this algorithm was deemed to be the fastest
+    s = b''
+    while n > 0:
+        s = struct.pack('>I', n & 0xffffffff) + s
+        n = n >> 32
+    # strip off leading zeros
+    for i in range(len(s)):
+        if s[i] != b'\000'[0]:
+            break
+    else:
+        # only happens when n == 0
+        s = b'\000'
+        i = 0
+    s = s[i:]
+    # add back some pad bytes.  this could be done more efficiently w.r.t. the
+    # de-padding being done above, but sigh...
+    if blocksize > 0 and len(s) % blocksize:
+        s = (blocksize - len(s) % blocksize) * b'\000' + s
+    return s
+
+def bytes_to_long(s: bytes) -> int:
+    """
+    Convert a byte string to a long integer.
+
+    This is (essentially) the inverse of long_to_bytes().
+    """
+    acc = 0
+    length = len(s)
+    if length % 4:
+        extra = (4 - length % 4)
+        s = b'\000' * extra + s
+        length = length + extra
+    for i in range(0, length, 4):
+        acc = (acc << 32) + struct.unpack('>I', s[i:i+4])[0]
+    return acc
+
+def get_random_bytes(howMany: int) -> bytearray:
     b = bytearray(os.urandom(howMany))
     assert len(b) == howMany
     return b
 
-def get_random_number(low, high):
+def get_random_number(low: int, high: int) -> bytearray:
     assert low <= high
     howManyBits = len(bin(high)[2:])
     howManyBytes = len(long_to_bytes(high))
@@ -36,9 +76,9 @@ def get_random_number(low, high):
 
 class FFDHE:
 
-    def __init__(self, func_val=Uint16(0x0100)):
+    def __init__(self, algo_type: str):
         # public key (g=2, modulus=p)
-        self.p = functions[func_val]()
+        self.p = functions[algo_type]()
         self.g = 2
 
         # private key = [2, p-2]
@@ -51,10 +91,10 @@ class FFDHE:
         public_key = pow(self.g, self.my_secret, self.p)
         return long_to_bytes(public_key)
 
-    def gen_shared_key(self, peer_pub):
+    def gen_shared_key(self, peer_pub: bytes) -> bytes:
         """
-            peer_pub  : g^PeerSecKey mod p
-            self.my_secret : [2, ..., p-2]
+        peer_pub  : g^PeerSecKey mod p
+        self.my_secret : [2, ..., p-2]
         """
         # peer_pub, my_secret が bytes型 であった場合の変換処理
         if isinstance(peer_pub, bytes): peer_pub = bytes_to_long(peer_pub)
@@ -63,14 +103,13 @@ class FFDHE:
         return long_to_bytes(master_secret)
 
 
-
-def ffdhekex(ffdhe_instance: FFDHE):
-
+def ffdhkex(ffdhe_instance: FFDHE):
     def gen_master_key(secret_key, public_key):
         assert secret_key == ffdhe_instance.get_secret_key()
         return ffdhe_instance.gen_shared_key(public_key)
-
     return gen_master_key
+
+FFDHE.get_dhkey = ffdhkex
 
 
 def get_ffdhe2048_p():
@@ -239,11 +278,11 @@ def get_ffdhe8192_p():
 
 # FFDHEに使用するMudulus(素数)を取得する関数の定義
 functions = {
-    Uint16(0x0100) : get_ffdhe2048_p, # ffdhe2048 = Uint16(0x0100)
-    Uint16(0x0101) : get_ffdhe3072_p, # ffdge3072 = Uint16(0x0101)
-    Uint16(0x0102) : get_ffdhe4096_p, # ffdhe4096 = Uint16(0x0102)
-    Uint16(0x0103) : get_ffdhe6144_p, # ffdhe6144 = Uint16(0x0103)
-    Uint16(0x0104) : get_ffdhe8192_p, # ffdhe8192 = Uint16(0x0104)
+    Uint16(0x0100) : get_ffdhe2048_p,
+    Uint16(0x0101) : get_ffdhe3072_p,
+    Uint16(0x0102) : get_ffdhe4096_p,
+    Uint16(0x0103) : get_ffdhe6144_p,
+    Uint16(0x0104) : get_ffdhe8192_p,
     'ffdhe2048': get_ffdhe2048_p,
     'ffdhe3072': get_ffdhe3072_p,
     'ffdhe4096': get_ffdhe4096_p,
