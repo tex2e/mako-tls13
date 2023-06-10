@@ -6,28 +6,28 @@ from protocol_ext_supportedgroups import NamedGroup
 import crypto_hkdf as hkdf
 
 class TLSContext:
-    def __init__(self, peer_name):
+    def __init__(self, peer_name: str):
         # TLSのどちら側の通信者か
         assert peer_name in ('client', 'server')
         self.peer_name = peer_name
         # TLSのやりとりで送信されてきたメッセージを格納する。
         # 辞書のkeyはクラス名 (ClientHelloなど) 、valueはTLSPlaintextクラスのインスタンス
-        self.tls_messages = {}
+        self.tls_messages: dict[str, bytes] = {}
         # Handshakeレコードのrecord.fragment部分のバイト列を結合したもの
-        self.tls_messages_bytes = []
+        self.tls_messages_bytes: list[bytes] = []
 
-    def append_msg(self, handshake):
+    def append_msg(self, handshake: bytes):
         self.tls_messages[handshake.msg_type] = handshake
         self.tls_messages_bytes.append(bytes(handshake))
 
-    def get_messages_byte(self):
+    def get_messages_byte(self) -> bytes:
         return b''.join(self.tls_messages_bytes)
 
-    def set_key_exchange(self, dhkex_class, secret_key):
+    def set_key_exchange(self, dhkex_classes: dict, secret_keys: dict):
         self.client_hello = self.tls_messages.get(HandshakeType.client_hello)
         self.server_hello = self.tls_messages.get(HandshakeType.server_hello)
-        self.dhkex_class = dhkex_class # TODO: something like list or ...
-        self.secret_key = secret_key   # TODO:
+        self.dhkex_classes = dhkex_classes # TODO: something like list or ...
+        self.secret_keys = secret_keys   # TODO:
 
         self._derive_negotiated_params()
 
@@ -39,7 +39,14 @@ class TLSContext:
         if self.peer_name == 'client':
             for ext in self.server_hello.msg.extensions:
                 if ext.extension_type == ExtensionType.key_share:
-                    peer_share = ext.extension_data.shares
+                    if ext.extension_data.shares.group == NamedGroup.x25519:
+                        peer_share = ext.extension_data.shares
+                        dhkex_class = self.dhkex_classes[NamedGroup.x25519]
+                        secret_key = self.secret_keys[NamedGroup.x25519]
+                    if ext.extension_data.shares.group == NamedGroup.ffdhe4096:
+                        peer_share = ext.extension_data.shares
+                        dhkex_class = self.dhkex_classes[NamedGroup.ffdhe4096]
+                        secret_key = self.secret_keys[NamedGroup.ffdhe4096]
                     break
         elif self.peer_name == 'server':
             ext = self.client_hello.msg.extensions \
@@ -47,10 +54,17 @@ class TLSContext:
             for client_share in ext.extension_data.shares:
                 if client_share.group == NamedGroup.x25519:
                     peer_share = client_share
+                    dhkex_class = self.dhkex_classes[NamedGroup.x25519]
+                    secret_key = self.secret_keys[NamedGroup.x25519]
+                    break
+                if client_share.group == NamedGroup.ffdhe4096:
+                    peer_share = client_share
+                    dhkex_class = self.dhkex_classes[NamedGroup.ffdhe4096]
+                    secret_key = self.secret_keys[NamedGroup.ffdhe4096]
                     break
 
-        self.shared_key = self.dhkex_class(
-            self.secret_key, peer_share.key_exchange.get_raw_bytes())
+        self.shared_key = dhkex_class(
+            secret_key, peer_share.key_exchange.get_raw_bytes())
         # print('[+] shared key:', self.shared_key.hex())
 
         self.hash_name   = CipherSuite.get_hash_name(self.cipher_suite)

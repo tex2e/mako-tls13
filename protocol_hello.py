@@ -19,7 +19,7 @@ class ClientHello(meta.StructMeta):
     random: Random = lambda self: Random(os.urandom(32))
     legacy_session_id: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
     cipher_suites: CipherSuites
-    legacy_compression_methods: OpaqueUint8 = OpaqueUint8(b'\x00')
+    legacy_compression_methods: OpaqueUint8 = lambda self: OpaqueUint8(b'\x00')
     extensions: Extensions
 
 @meta.struct
@@ -28,7 +28,7 @@ class ServerHello(meta.StructMeta):
     random: Random = lambda self: Random(os.urandom(32))
     legacy_session_id_echo: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
     cipher_suite: CipherSuite
-    legacy_compression_method: Opaque1 = Opaque1(b'\x00')
+    legacy_compression_method: Opaque1 = lambda self: Opaque1(b'\x00')
     extensions: Extensions
 
 

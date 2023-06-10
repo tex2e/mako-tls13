@@ -13,7 +13,7 @@ class CipherSuite(Enum):
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV = Uint16(0x00FF)
 
     @classmethod
-    def get_cipher_class(cls, cipher_suite):
+    def get_cipher_class(cls, cipher_suite: Uint16) -> object:
         ciphercuite2class = {
             CipherSuite.TLS_AES_128_GCM_SHA256: None,
             CipherSuite.TLS_AES_256_GCM_SHA384: None,
@@ -24,14 +24,14 @@ class CipherSuite(Enum):
         return ciphercuite2class.get(cipher_suite)
 
     @classmethod
-    def get_hash_name(cls, cipher_suite):
+    def get_hash_name(cls, cipher_suite) -> str:
         if cipher_suite == CipherSuite.TLS_AES_256_GCM_SHA384:
             return 'sha384'
         else:
             return 'sha256'
 
     @classmethod
-    def get_hash_size(cls, cipher_suite):
+    def get_hash_size(cls, cipher_suite: Uint16) -> int:
         if cipher_suite == CipherSuite.TLS_AES_256_GCM_SHA384:
             return 48
         else:

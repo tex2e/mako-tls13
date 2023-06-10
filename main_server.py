@@ -32,15 +32,29 @@ from protocol_authentication import Certificate, \
     Finished, Hash, OpaqueHash
 from protocol_alert import Alert, AlertLevel, AlertDescription
 
-from crypto_x25519 import x25519
+from crypto_ecdhe import x25519
+from crypto_ffdhe import FFDHE, ffdhekex
 import crypto_hkdf as hkdf
 
 ctx = TLSContext('server')
 
-dhkex_class = x25519
+dhkex_class1 = x25519
+secret_key1 = os.urandom(32)
+public_key1 = dhkex_class1(secret_key1)
 
-secret_key = os.urandom(32)
-public_key = dhkex_class(secret_key)
+ffdhe4096 = FFDHE('ffdhe4096')
+secret_key2 = ffdhe4096.get_secret_key()
+public_key2 = ffdhe4096.gen_public_key()
+dhkex_class2 = ffdhekex(ffdhe4096)
+
+dhkex_classes = {
+    NamedGroup.x25519: dhkex_class1,
+    NamedGroup.ffdhe4096: dhkex_class2
+}
+secret_keys = {
+    NamedGroup.x25519: secret_key1,
+    NamedGroup.ffdhe4096: secret_key2
+}
 
 server_conn = connection.ServerConnection('localhost', 50007)
 
@@ -82,7 +96,7 @@ server_hello = Handshake(
                 extension_data=KeyShareHello(
                     shares=KeyShareEntry(
                         group=NamedGroup.x25519,
-                        key_exchange=OpaqueUint16(public_key)
+                        key_exchange=OpaqueUint16(public_key1)
                     )
                 )
             )
@@ -93,7 +107,7 @@ ctx.append_msg(server_hello)
 print(server_hello)
 
 # Key Schedule
-ctx.set_key_exchange(dhkex_class, secret_key)
+ctx.set_key_exchange(dhkex_classes, secret_keys)
 ctx.key_schedule_in_handshake()
 Hash.length = ctx.hash_size
 

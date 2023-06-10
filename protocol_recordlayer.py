@@ -20,7 +20,7 @@ class TLSPlaintext(meta.StructMeta):
     fragment: OpaqueLength
 
     @classmethod
-    def create(self, content_type, *messages):
+    def create(self, content_type: ContentType, *messages) -> meta.StructMeta:
         assert isinstance(content_type, ContentType)
         messages_byte = b''.join(bytes(msg) for msg in messages)
         return TLSPlaintext(
@@ -28,7 +28,7 @@ class TLSPlaintext(meta.StructMeta):
             fragment=OpaqueLength(messages_byte)
         )
 
-    def encrypt(self, cipher_instance):
+    def encrypt(self, cipher_instance) -> meta.StructMeta:
         msg_pad = TLSInnerPlaintext.append_pad(self)
         tag_size = cipher_instance.__class__.tag_size
         aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
@@ -37,7 +37,7 @@ class TLSPlaintext(meta.StructMeta):
             encrypted_record=OpaqueLength(bytes(encrypted_record))
         )
 
-    def get_messages(self):
+    def get_messages(self) -> list:
         contenttype2class = {
             ContentType.handshake:          Handshake,
             ContentType.change_cipher_spec: OpaqueLength,
@@ -61,7 +61,7 @@ class TLSCiphertext(meta.StructMeta):
     length: Uint16 = lambda self: Uint16(len(bytes(self.encrypted_record)))
     encrypted_record: OpaqueLength
 
-    def decrypt(self, cipher_instance):
+    def decrypt(self, cipher_instance) -> TLSPlaintext:
         encrypted_record = self.encrypted_record.get_raw_bytes()
         aad = bytes.fromhex('170303') + bytes(Uint16(len(encrypted_record)))
         plaindata = cipher_instance.decrypt_and_verify(encrypted_record, aad)
@@ -76,7 +76,7 @@ class TLSCiphertext(meta.StructMeta):
         )
 
     # Application Data を受信したとき
-    def _decrypt_app_data(self, plaindata, content_type):
+    def _decrypt_app_data(self, plaindata, content_type) -> TLSPlaintext:
         # NewSessionTicketを受け取った場合
         if plaindata[:2] == bytes(HandshakeType.new_session_ticket) + b'\x00':
             return TLSPlaintext(
@@ -93,7 +93,7 @@ class TLSCiphertext(meta.StructMeta):
 
 class TLSInnerPlaintext:
     @staticmethod
-    def append_pad(tlsplaintext):
+    def append_pad(tlsplaintext) -> bytes:
         data = bytes(tlsplaintext.fragment) + bytes(tlsplaintext.type)
         length_of_padding = 16 - len(data) % 16
         pad = b'\x00' * length_of_padding

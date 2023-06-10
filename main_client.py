@@ -27,15 +27,29 @@ from protocol_ext_keyshare import KeyShareHello, KeyShareEntrys, KeyShareEntry
 from protocol_authentication import Finished, Hash, OpaqueHash
 from protocol_alert import Alert, AlertLevel, AlertDescription
 
-from crypto_x25519 import x25519
+from crypto_ecdhe import x25519
+from crypto_ffdhe import FFDHE, ffdhekex
 import crypto_hkdf as hkdf
 
 ctx = TLSContext('client')
 
-dhkex_class = x25519
+dhkex_class1 = x25519
+secret_key1 = os.urandom(32)
+public_key1 = dhkex_class1(secret_key1)
 
-secret_key = os.urandom(32)
-public_key = dhkex_class(secret_key)
+ffdhe4096 = FFDHE('ffdhe4096')
+secret_key2 = ffdhe4096.get_secret_key()
+public_key2 = ffdhe4096.gen_public_key()
+dhkex_class2 = ffdhekex(ffdhe4096)
+
+dhkex_classes = {
+    NamedGroup.x25519: dhkex_class1,
+    NamedGroup.ffdhe4096: dhkex_class2
+}
+secret_keys = {
+    NamedGroup.x25519: secret_key1,
+    NamedGroup.ffdhe4096: secret_key2
+}
 
 client_hello = Handshake(
     msg_type=HandshakeType.client_hello,
@@ -57,7 +71,8 @@ client_hello = Handshake(
                 extension_type=ExtensionType.supported_groups,
                 extension_data=NamedGroupList(
                     named_group_list=NamedGroups([
-                        NamedGroup.x25519
+                        NamedGroup.x25519,
+                        NamedGroup.ffdhe4096,
                     ])
                 )
             ),
@@ -77,8 +92,12 @@ client_hello = Handshake(
                     shares=KeyShareEntrys([
                         KeyShareEntry(
                             group=NamedGroup.x25519,
-                            key_exchange=OpaqueUint16(public_key)
-                        )
+                            key_exchange=OpaqueUint16(public_key1)
+                        ),
+                        KeyShareEntry(
+                            group=NamedGroup.ffdhe4096,
+                            key_exchange=OpaqueUint16(public_key2)
+                        ),
                     ])
                 )
             )
@@ -138,7 +157,7 @@ while True:
                 print(msg)
                 ctx.append_msg(msg)
 
-            ctx.set_key_exchange(dhkex_class, secret_key)
+            ctx.set_key_exchange(dhkex_classes, secret_keys)
             Hash.length = ctx.hash_size
 
             print('[+] shared key:', ctx.shared_key.hex())
