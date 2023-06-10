@@ -1,6 +1,6 @@
 
-from type import Uint8, Uint16, List, Enum
-import structmeta as meta
+from metatype import Uint8, Uint16, List, Enum
+import metastruct as meta
 
 from protocol_types import HandshakeType
 
@@ -16,7 +16,7 @@ class ProtocolVersion(Enum):
 ProtocolVersions = List(size_t=Uint8, elem_t=ProtocolVersion)
 
 @meta.struct
-class SupportedVersions(meta.StructMeta):
+class SupportedVersions(meta.MetaStruct):
     versions: meta.Select('Handshake.msg_type', cases={
         HandshakeType.client_hello: ProtocolVersions,
         HandshakeType.server_hello: ProtocolVersion,
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         def test_ext_supported_versions_client_hello(self):
 
             @meta.struct
-            class Handshake(meta.StructMeta):
+            class Handshake(meta.MetaStruct):
                 msg_type: HandshakeType
                 msg: SupportedVersions
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         def test_ext_supported_versions_server_hello(self):
 
             @meta.struct
-            class Handshake(meta.StructMeta):
+            class Handshake(meta.MetaStruct):
                 msg_type: HandshakeType
                 msg: SupportedVersions
 

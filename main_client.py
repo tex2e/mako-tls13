@@ -9,8 +9,8 @@ import threading
 import queue
 
 import connection
-from type import Uint8, Uint16, OpaqueUint16
-from disp import hexdump
+from metatype import Uint8, Uint16, OpaqueUint16
+from utils import hexdump
 
 from protocol_tlscontext import TLSContext
 from protocol_types import ContentType, HandshakeType
@@ -145,7 +145,7 @@ while True:
 
         # Alert受信時
         if content_type == ContentType.alert:
-            tlsplaintext = TLSPlaintext.from_fs(stream)
+            tlsplaintext = TLSPlaintext.from_stream(stream)
             for alert in tlsplaintext.get_messages():
                 print('[-] Recv Alert!')
                 print(alert)
@@ -154,7 +154,7 @@ while True:
         # 最初のデータはServerHello
         elif not is_recv_serverhello:
             # ServerHello
-            tlsplaintext = TLSPlaintext.from_fs(stream)
+            tlsplaintext = TLSPlaintext.from_stream(stream)
             for msg in tlsplaintext.get_messages():
                 print('[*] ServerHello!')
                 print(msg)
@@ -173,7 +173,7 @@ while True:
         # ChangeCipherSpecはTLS 1.3では無視する
         elif content_type == ContentType.change_cipher_spec:
             # ChangeCipherSpec
-            change_cipher_spec = TLSPlaintext.from_fs(stream)
+            change_cipher_spec = TLSPlaintext.from_stream(stream)
             print(change_cipher_spec)
 
         # 暗号化されたHandshakeメッセージ
@@ -181,7 +181,7 @@ while True:
             # EncryptedExtensions, Certificate, CertificateVerify, Finished
             print("Got!")
 
-            tlsplaintext = TLSCiphertext.from_fs(stream) \
+            tlsplaintext = TLSCiphertext.from_stream(stream) \
                                         .decrypt(ctx.server_traffic_crypto)
             # print(tlsplaintext)
             for msg in tlsplaintext.get_messages():
@@ -283,7 +283,7 @@ try:
 
             # Alert受信時
             if content_type == ContentType.alert:
-                tlsplaintext = TLSPlaintext.from_fs(stream)
+                tlsplaintext = TLSPlaintext.from_stream(stream)
                 for alert in tlsplaintext.get_messages():
                     print('[-] Recv Alert!')
                     print(alert)
@@ -291,7 +291,7 @@ try:
 
             # ApplicationData(暗号化データ)受信時
             elif content_type == ContentType.application_data:
-                obj = TLSCiphertext.from_fs(stream) \
+                obj = TLSCiphertext.from_stream(stream) \
                     .decrypt(ctx.server_app_data_crypto)
                 print(obj)
 

@@ -2,17 +2,19 @@
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 import re # 正規表現
-from type import Type, List, ListMeta
+import shutil # ターミナル幅の取得
+from metatype import Type, List, ListMeta
+from utils import dig
 
 import dataclasses
 
 # TLSメッセージの構造体を表すためのクラス群
 # 使い方：
 #
-#   import structmeta as meta
+#   import metastruct as meta
 #
 #   @meta.struct
-#   class ClientHello(meta.StructMeta):
+#   class ClientHello(meta.MetaStruct):
 #       legacy_version: ProtocolVersion
 #       random: Random
 #       legacy_session_id: Opaque(size_t=Uint8)
@@ -28,7 +30,15 @@ def struct(cls):
             setattr(cls, name, None)
     return dataclasses.dataclass(repr=False)(cls)
 
-class StructMeta(Type):
+def is_MetaStruct(elem):
+    return isinstance(elem, MetaStruct)
+
+def is_List_of_MetaStruct(elem):
+    return (isinstance(elem, ListMeta) and
+            issubclass(elem.__class__.elem_t, MetaStruct))
+
+# 構造体の抽象クラス
+class MetaStruct(Type):
 
     def __post_init__(self):
 
@@ -51,12 +61,12 @@ class StructMeta(Type):
 
     @classmethod
     def create_empty(cls):
-        dict = {}
+        dictionary = {}
         for name, field in cls.__dataclass_fields__.items():
-            dict[name] = None
-        return cls(**dict)
+            dictionary[name] = None
+        return cls(**dictionary)
 
-    # 全てのStructMetaは親インスタンスを参照できるようにする。
+    # 全てのMetaStructは親インスタンスを参照できるようにする。
     def set_parent(self, parent):
         self.parent = parent
 
@@ -70,7 +80,7 @@ class StructMeta(Type):
         return f.getvalue()
 
     @classmethod
-    def from_fs(cls, fs, parent=None):
+    def from_stream(cls, fs, parent=None):
         # デフォルト値などを導出せずにインスタンス化する
         instance = cls.create_empty()
         instance.set_parent(parent) # 子が親インスタンスを参照できるようにする
@@ -83,10 +93,24 @@ class StructMeta(Type):
                 elem_t = elem_t.select_type_by_switch(instance)
 
             # バイト列から構造体への変換
-            elem = elem_t.from_fs(fs, instance)
+            elem = elem_t.from_stream(fs, instance)
             # 値を構造体へ格納
             setattr(instance, name, elem)
         return instance
+
+    # 値をプロパティに直接代入した時に親参照を再設定する処理
+    def update(self):
+        cls = self.__class__
+        # instance = cls.create_empty()
+        # instance.set_parent(self.parent)
+        for name, field in cls.get_struct().items():
+            # それぞれの値の親参照を自身に設定
+            elem = getattr(self, name)
+            if getattr(elem, 'set_parent', None):
+                elem.set_parent(self)
+            # 値を構造体へ格納
+            # setattr(instance, name, elem)
+        # return instance
 
     @classmethod
     def get_struct(cls):
@@ -96,8 +120,8 @@ class StructMeta(Type):
         # 出力は次のようにする
         # 1. 各要素を表示するときはプラス(+)記号を加えて、出力幅が70を超えないようにする
         #     + 要素名: 型(値)
-        # 2. 要素もStructMetaのときは、内部要素をスペース2つ分だけインデントする
-        #     + 要素名: StructMeta名:
+        # 2. 要素もMetaStructのときは、内部要素をスペース2つ分だけインデントする
+        #     + 要素名: MetaStruct名:
         #       + 要素: 型(値)
         title = "%s:\n" % self.__class__.__name__
         elems = []
@@ -106,19 +130,14 @@ class StructMeta(Type):
             content = repr(elem)
             output = '%s: %s' % (name, content)
 
-            def is_StructMeta(elem):
-                return isinstance(elem, StructMeta)
-            def is_List_of_StructMeta(elem):
-                return (isinstance(elem, ListMeta) and
-                        issubclass(elem.__class__.elem_t, StructMeta))
-
-            if is_StructMeta(elem) or is_List_of_StructMeta(elem):
-                # 要素のStructMetaは出力が複数行になるので、その要素をインデントさせる
+            if is_MetaStruct(elem) or is_List_of_MetaStruct(elem):
+                # 要素のMetaStructは出力が複数行になるので、その要素をインデントさせる
                 output = textwrap.indent(output, prefix="  ").strip()
             else:
                 # その他の要素は出力が1行なので、コンソールの幅を超えないように折返し出力させる
-                nest = self.count_ancestors()
-                output = '\n  '.join(textwrap.wrap(output, width=70-(nest*2)))
+                nest = self.count_ancestors() + 2
+                output = '\n  '.join(
+                    textwrap.wrap(output, width=shutil.get_terminal_size().columns-(nest*3)))
             elems.append('+ ' + output)
         return title + "\n".join(elems)
 
@@ -135,7 +154,7 @@ class StructMeta(Type):
 
 # 状況に応じて型を選択するためのクラス。
 # 例えば、Handshake.msg_type が client_hello と server_hello で、
-# 自身や子供の構造体フィールドの型が変化する場合に使用する。
+# 自身や子要素の構造体フィールドの型が変化する場合に使用する。
 class Select:
     def __init__(self, switch, cases):
         assert isinstance(switch, str)
@@ -145,28 +164,34 @@ class Select:
         # 引数 switch の構文が正しいか確認する。
         #   自身のプロパティを参照する場合 : "プロパティ名"
         #   親のプロパティを参照する場合 : "親クラス名.プロパティ名"
-        if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z_]+)?$', self.switch):
+        #   自身のプロパティから辿って参照する場合 : "self.プロパティ名1.プロパティ名2"
+        if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z_]+)?$|^self\.[a-zA-Z0-9_]+(\.[a-zA-Z_]+)*$', self.switch):
             raise Exception('Select(%s) is invalid syntax!' % self.switch)
 
     # フィールド .switch の内容を元に、構築中のインスタンスからプロパティを検索し、
     # プロパティの値から導出した型を返す。
     def select_type_by_switch(self, instance):
-        if re.match(r'^[^.]+\.[^.]+$', self.switch):
-            # 条件が「クラス名.プロパティ名」のとき
-            class_name, prop_name = self.switch.split('.', maxsplit=1)
+        if re.match(r'^self\.([^.]+(?:\.[^.]+)*)', self.switch):
+            # 条件が「self.プロパティ名.プロパティ名...」のとき
+            props = self.switch.split('.')[1:]
+            value = dig(instance, *props)
         else:
-            # 条件が「プロパティ名」のみ
-            class_name, prop_name = instance.__class__.__name__, self.switch
-        # インスタンスのクラス名がclass_nameと一致するまで親をさかのぼる
-        tmp = instance
-        while tmp is not None:
-            if tmp.__class__.__name__ == class_name: break
-            tmp = tmp.parent
-        if tmp is None:
-            raise Exception('Not found %s class in ancestors from %s!' % \
-                (class_name, instance.__class__.__name__))
-        # 既に格納した値の取得
-        value = getattr(tmp, prop_name)
+            if re.match(r'^[^.]+\.[^.]+$', self.switch):
+                # 条件が「クラス名.プロパティ名」のとき
+                class_name, prop_name = self.switch.split('.', maxsplit=1)
+            else:
+                # 条件が「プロパティ名」のみ
+                class_name, prop_name = instance.__class__.__name__, self.switch
+            # インスタンスのクラス名がclass_nameと一致するまで親をさかのぼる
+            tmp = instance
+            while tmp is not None:
+                if tmp.__class__.__name__ == class_name: break
+                tmp = tmp.parent
+            if tmp is None:
+                raise Exception('Not found %s class in ancestors from %s!' % \
+                    (class_name, instance.__class__.__name__))
+            # 既に格納した値の取得
+            value = getattr(tmp, prop_name)
         # 既に格納した値から使用する型を決定する
         ret = self.cases.get(value)
         if ret is None:
@@ -188,19 +213,19 @@ class Otherwise:
 
 if __name__ == '__main__':
 
-    from type import Uint8, Uint16, Opaque, List
+    from metatype import Uint8, Uint16, Opaque, List
 
     import unittest
 
     class TestUint(unittest.TestCase):
 
-        def test_structmeta(self):
+        def test_metastruct(self):
 
             OpaqueUint8 = Opaque(size_t=Uint8)
             ListUint8OpaqueUint8 = List(size_t=Uint8, elem_t=Opaque(size_t=Uint8))
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 fieldA: Uint16
                 fieldB: OpaqueUint8
                 fieldC: ListUint8OpaqueUint8
@@ -220,10 +245,10 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), b'\x00\x01\x01\xff\x04\x01\xaa\x01\xbb')
             self.assertEqual(Sample1.from_bytes(bytes(s)), s)
 
-        def test_structmeta_eq_neq(self):
+        def test_metastruct_eq_neq(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 fieldA: Uint8
                 fieldB: Uint8
 
@@ -234,10 +259,10 @@ if __name__ == '__main__':
             self.assertEqual(s1, s2)
             self.assertNotEqual(s1, s3)
 
-        def test_structmeta_default_value(self):
+        def test_metastruct_default_value(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 fieldA: Uint8 = Uint8(0x01)
                 fieldB: Uint8
 
@@ -246,10 +271,10 @@ if __name__ == '__main__':
 
             self.assertEqual(s1, s2)
 
-        def test_structmeta_default_lambda(self):
+        def test_metastruct_default_lambda(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 length: Uint8 = lambda self: Uint8(len(bytes(self.fragment)))
                 fragment: Opaque(Uint8)
 
@@ -257,15 +282,15 @@ if __name__ == '__main__':
 
             self.assertEqual(s1.length, Uint8(5))
 
-        def test_structmeta_recursive(self):
+        def test_metastruct_recursive(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 fieldC: Uint16
                 fieldD: Uint16
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 fieldA: Uint16
                 fieldB: Sample1
 
@@ -279,14 +304,14 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), b'\xaa\xaa\xbb\xbb\xcc\xcc')
             self.assertEqual(Sample2.from_bytes(bytes(s)), s)
 
-        def test_structmeta_keep_rest_bytes(self):
+        def test_metastruct_keep_rest_bytes(self):
             import io
 
             OpaqueUint8 = Opaque(size_t=Uint8)
             ListUint8OpaqueUint8 = List(size_t=Uint8, elem_t=Opaque(size_t=Uint8))
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 fieldA: Uint16
                 fieldB: OpaqueUint8
                 fieldC: ListUint8OpaqueUint8
@@ -299,19 +324,19 @@ if __name__ == '__main__':
             deadbeef = bytes.fromhex('deadbeef')
             fs = io.BytesIO(bytes(s) + deadbeef)
 
-            s2 = Sample1.from_fs(fs)
+            s2 = Sample1.from_stream(fs)
 
             rest = fs.read()
             self.assertEqual(rest, deadbeef)
 
-        def test_structmeta_select(self):
+        def test_metastruct_select(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 field: Uint16
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 type: Uint8
                 fragment: Select('type', cases={
                     Uint8(0xaa): Opaque(0),
@@ -326,17 +351,17 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s2), bytes.fromhex('bb 1212'))
             self.assertEqual(Sample2.from_bytes(bytes(s2)), s2)
 
-        def test_structmeta_parent(self):
+        def test_metastruct_parent(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 child_field: Select('Sample2.parent_field', cases={
                     Uint8(0xaa): Uint8,
                     Uint8(0xbb): Uint16,
                 })
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 parent_field: Uint8
                 fragment: Sample1
 
@@ -356,22 +381,22 @@ if __name__ == '__main__':
             self.assertEqual(Sample2.from_bytes(bytes(s1)), s1)
             self.assertEqual(Sample2.from_bytes(bytes(s2)), s2)
 
-        def test_structmeta_multiple_parents(self):
+        def test_metastruct_multiple_parents(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 child_field: Select('Sample3.parent_fieldA', cases={
                     Uint8(0xaa): Uint8,
                     Uint8(0xbb): Uint16,
                 })
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 parent_fieldB: Uint8
                 fragment: Sample1
 
             @struct
-            class Sample3(StructMeta):
+            class Sample3(MetaStruct):
                 parent_fieldA: Uint8
                 fragment: Sample2
 
@@ -386,17 +411,17 @@ if __name__ == '__main__':
             self.assertEqual(bytes(s), s_byte)
             self.assertEqual(Sample3.from_bytes(bytes(s)), s)
 
-        def test_structmeta_unknown_parent(self):
+        def test_metastruct_unknown_parent(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 child_field: Select('UnknownClass.parent_field', cases={
                     Uint8(0xaa): Uint8,
                     Uint8(0xbb): Uint16,
                 })
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 parent_field: Uint8
                 fragment: Sample1
 
@@ -405,7 +430,7 @@ if __name__ == '__main__':
             with self.assertRaisesRegex(Exception, 'UnknownClass') as cm:
                 a = Sample2.from_bytes(bytes(s1_byte))
 
-        def test_structmeta_invalid_switch(self):
+        def test_metastruct_invalid_switch(self):
             with self.assertRaisesRegex(Exception, 'Select') as cm:
                 Select('.field', cases={})
             with self.assertRaisesRegex(Exception, 'Select') as cm:
@@ -415,24 +440,24 @@ if __name__ == '__main__':
             with self.assertRaisesRegex(Exception, 'Select') as cm:
                 Select('Handshake.field.fieldA', cases={})
 
-        def test_structmeta_has_parent_ref(self):
+        def test_metastruct_has_parent_ref(self):
 
             @struct
-            class Sample1(StructMeta):
+            class Sample1(MetaStruct):
                 child_field: Select('Sample3.parent_fieldA', cases={
                     Uint8(0xaa): Uint8,
                     Uint8(0xbb): Uint16,
                 })
 
             @struct
-            class Sample2(StructMeta):
+            class Sample2(MetaStruct):
                 parent_fieldB: Uint8
                 fragment: Sample1
 
             Sample2s = List(size_t=Uint8, elem_t=Sample2)
 
             @struct
-            class Sample3(StructMeta):
+            class Sample3(MetaStruct):
                 parent_fieldA: Uint8
                 fragment: Sample2s
 
@@ -451,13 +476,15 @@ if __name__ == '__main__':
             target = s.fragment.get_array()[0].fragment # 最下の子インスタンス
             self.assertTrue(isinstance(target, Sample1))
             self.assertTrue(isinstance(target.parent, Sample2))
-            self.assertTrue(isinstance(target.parent.parent, Sample3))
+            self.assertTrue(is_List_of_MetaStruct(target.parent.parent))
+            self.assertTrue(isinstance(target.parent.parent.parent, Sample3))
 
             # バイト列から構造体を構築した場合
             s2 = Sample3.from_bytes(bytes(s))
             target = s.fragment.get_array()[0].fragment # 最下の子インスタンス
             self.assertTrue(isinstance(target, Sample1))
             self.assertTrue(isinstance(target.parent, Sample2))
-            self.assertTrue(isinstance(target.parent.parent, Sample3))
+            self.assertTrue(is_List_of_MetaStruct(target.parent.parent))
+            self.assertTrue(isinstance(target.parent.parent.parent, Sample3))
 
     unittest.main()

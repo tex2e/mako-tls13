@@ -10,8 +10,8 @@ import queue
 import ssl
 
 import connection
-from type import Uint8, Uint16, OpaqueUint8, OpaqueUint16, OpaqueUint24, OpaqueLength
-from disp import hexdump
+from metatype import Uint8, Uint16, OpaqueUint8, OpaqueUint16, OpaqueUint24, OpaqueLength
+from utils import hexdump
 
 from protocol_tlscontext import TLSContext
 from protocol_types import ContentType, HandshakeType
@@ -67,7 +67,7 @@ print(hexdump(buf))
 stream = io.BytesIO(buf)
 
 # 最初のデータはClientHello
-for msg in TLSPlaintext.from_fs(stream).get_messages():
+for msg in TLSPlaintext.from_stream(stream).get_messages():
     print('[*] ClientHello!')
     print(msg)
     print(hexdump(bytes(msg)))
@@ -257,7 +257,7 @@ try:
 
             # Alert受信時
             if content_type == ContentType.alert:
-                tlsplaintext = TLSPlaintext.from_fs(stream)
+                tlsplaintext = TLSPlaintext.from_stream(stream)
                 for alert in tlsplaintext.get_messages():
                     print('[-] Recv Alert!')
                     print(alert)
@@ -266,13 +266,13 @@ try:
             # ChangeCipherSpecはTLS 1.3では無視する
             elif content_type == ContentType.change_cipher_spec:
                 # ChangeCipherSpec
-                change_cipher_spec = TLSPlaintext.from_fs(stream)
+                change_cipher_spec = TLSPlaintext.from_stream(stream)
                 print(change_cipher_spec)
 
             # Finished受信時
             elif not is_recv_finished and content_type == ContentType.application_data:
                 tlsplaintext = \
-                    TLSCiphertext.from_fs(stream).decrypt(ctx.client_traffic_crypto)
+                    TLSCiphertext.from_stream(stream).decrypt(ctx.client_traffic_crypto)
                 for msg in tlsplaintext.get_messages():
                     print('[*] Finished!')
                     print(msg)
@@ -285,7 +285,7 @@ try:
 
             # ApplicationData(暗号化データ)受信時
             elif content_type == ContentType.application_data:
-                obj = TLSCiphertext.from_fs(stream) \
+                obj = TLSCiphertext.from_stream(stream) \
                     .decrypt(ctx.client_app_data_crypto)
                 print(obj)
 

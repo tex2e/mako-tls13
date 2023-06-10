@@ -1,7 +1,7 @@
 
 import os
-from type import Uint8, Uint16, Opaque, OpaqueUint8, List
-import structmeta as meta
+from metatype import Uint8, Uint16, Opaque, OpaqueUint8, List
+import metastruct as meta
 
 from protocol_ciphersuite import CipherSuites, CipherSuite
 from protocol_extensions import Extension, Extensions
@@ -14,7 +14,7 @@ Random = Opaque(32)
 Opaque1 = Opaque(1)
 
 @meta.struct
-class ClientHello(meta.StructMeta):
+class ClientHello(meta.MetaStruct):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
     random: Random = lambda self: Random(os.urandom(32))
     legacy_session_id: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))
@@ -23,7 +23,7 @@ class ClientHello(meta.StructMeta):
     extensions: Extensions
 
 @meta.struct
-class ServerHello(meta.StructMeta):
+class ServerHello(meta.MetaStruct):
     legacy_version: ProtocolVersion = ProtocolVersion(0x0303)
     random: Random = lambda self: Random(os.urandom(32))
     legacy_session_id_echo: OpaqueUint8 = lambda self: OpaqueUint8(os.urandom(32))

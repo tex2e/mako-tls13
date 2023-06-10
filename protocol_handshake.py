@@ -1,6 +1,6 @@
 
-from type import Uint8, Uint16, Uint24, Opaque, List, Enum
-import structmeta as meta
+from metatype import Uint8, Uint16, Uint24, Opaque, List, Enum
+import metastruct as meta
 
 from protocol_types import HandshakeType
 from protocol_hello import ClientHello, ServerHello
@@ -12,7 +12,7 @@ from protocol_ticket import NewSessionTicket
 # Handshake Layer
 
 @meta.struct
-class Handshake(meta.StructMeta):
+class Handshake(meta.MetaStruct):
     msg_type: HandshakeType
     length: Uint24 = lambda self: Uint24(len(bytes(self.msg)))
     msg: meta.Select('msg_type', cases={

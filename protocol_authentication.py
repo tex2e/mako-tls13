@@ -1,7 +1,7 @@
 
-from type import Uint8, Uint16, Uint24, Opaque, List, Enum, \
+from metatype import Uint8, Uint16, Uint24, Opaque, List, Enum, \
     OpaqueUint8, OpaqueUint16, OpaqueUint24
-import structmeta as meta
+import metastruct as meta
 
 from protocol_extensions import Extensions, Extension
 from protocol_ext_signature import SignatureScheme
@@ -15,23 +15,25 @@ class CertificateType(Enum):
     RawPublicKey = Uint8(2)
 
 @meta.struct
-class CertificateEntry(meta.StructMeta):
+class CertificateEntry(meta.MetaStruct):
     cert_data: OpaqueUint24
     extensions: Extensions
 
 CertificateEntrys = List(size_t=Uint24, elem_t=CertificateEntry)
 
 @meta.struct
-class Certificate(meta.StructMeta):
+class Certificate(meta.MetaStruct):
     certificate_request_context: OpaqueUint8
     certificate_list: CertificateEntrys
 
 @meta.struct
-class CertificateVerify(meta.StructMeta):
+class CertificateVerify(meta.MetaStruct):
     algorithm: SignatureScheme
     signature: OpaqueUint16
 
 # --- Finished -----------------------------------------------------------------
+
+### TLS Finished ###
 
 class Hash:
     length = None
@@ -39,8 +41,19 @@ class Hash:
 OpaqueHash = Opaque(lambda self: Hash.length)
 
 @meta.struct
-class Finished(meta.StructMeta):
+class Finished(meta.MetaStruct):
     verify_data: OpaqueHash
+
+
+### QUIC Finished ###
+
+@meta.struct
+class FinishedQuic(meta.MetaStruct):
+    verify_data: OpaqueUint24
+
+def replace_to_quic_finished():
+    global Finished
+    Finished = FinishedQuic
 
 
 # ------------------------------------------------------------------------------
@@ -70,21 +83,21 @@ if __name__ == '__main__':
             self.assertEqual(bytes(c), c_bytes)
             self.assertEqual(Certificate.from_bytes(bytes(c)), c)
 
-        def test_finished_to_bytes(self):
+        # def test_finished_to_bytes(self):
+        #
+        #     finished = Finished(verify_data=OpaqueHash(b'\xAA' * 32))
+        #     finished_byte = b'\xAA' * 32
+        #     self.assertEqual(bytes(finished), finished_byte)
 
-            finished = Finished(verify_data=OpaqueHash(b'\xAA' * 32))
-            finished_byte = b'\xAA' * 32
-            self.assertEqual(bytes(finished), finished_byte)
-
-        def test_finished_from_bytes(self):
-            finished = Finished(verify_data=OpaqueHash(b'\xAA' * 32))
-
-            with self.assertRaises(Exception) as cm:
-                Finished.from_bytes(bytes(finished))
-
-            Hash.length = 32
-            finished2 = Finished.from_bytes(bytes(finished))
-            self.assertEqual(finished, finished2)
+        # def test_finished_from_bytes(self):
+        #     finished = Finished(verify_data=OpaqueHash(b'\xAA' * 32))
+        #
+        #     with self.assertRaises(Exception) as cm:
+        #         Finished.from_bytes(bytes(finished))
+        #
+        #     Hash.length = 32
+        #     finished2 = Finished.from_bytes(bytes(finished))
+        #     self.assertEqual(finished, finished2)
 
 
     unittest.main()

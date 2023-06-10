@@ -9,7 +9,7 @@
 
 import os
 import struct
-from type import Uint16
+from metatype import Uint16
 
 def long_to_bytes(n:int, blocksize:int=0) -> bytes:
     """

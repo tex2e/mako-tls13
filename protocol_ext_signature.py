@@ -1,6 +1,6 @@
 
-from type import Uint16, List, Enum
-import structmeta as meta
+from metatype import Uint16, List, Enum
+import metastruct as meta
 
 class SignatureScheme(Enum):
     elem_t = Uint16
@@ -39,5 +39,5 @@ class SignatureScheme(Enum):
 SignatureSchemes = List(size_t=Uint16, elem_t=SignatureScheme)
 
 @meta.struct
-class SignatureSchemeList(meta.StructMeta):
+class SignatureSchemeList(meta.MetaStruct):
     supported_signature_algorithms: SignatureSchemes

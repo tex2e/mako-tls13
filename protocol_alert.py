@@ -1,6 +1,6 @@
 
-from type import Uint8, Enum
-import structmeta as meta
+from metatype import Uint8, Enum
+import metastruct as meta
 
 class AlertLevel(Enum):
     elem_t = Uint8
@@ -40,6 +40,6 @@ class AlertDescription(Enum):
     no_application_protocol = Uint8(120)
 
 @meta.struct
-class Alert(meta.StructMeta):
+class Alert(meta.MetaStruct):
     level: AlertLevel
     description: AlertDescription

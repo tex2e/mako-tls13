@@ -10,6 +10,7 @@
 ### Prerequisites
 
 ```
+pip install cryptography
 pip install pycryptodome
 ```
 

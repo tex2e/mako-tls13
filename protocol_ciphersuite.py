@@ -1,6 +1,7 @@
 
-from type import Uint16, List, Enum
+from metatype import Uint16, List, Enum
 from crypto_chacha20poly1305 import Chacha20Poly1305
+from crypto_aesgcm import AES128GCM
 
 class CipherSuite(Enum):
     elem_t = Uint16
@@ -15,7 +16,7 @@ class CipherSuite(Enum):
     @classmethod
     def get_cipher_class(cls, cipher_suite: Uint16) -> object:
         ciphercuite2class = {
-            CipherSuite.TLS_AES_128_GCM_SHA256: None,
+            CipherSuite.TLS_AES_128_GCM_SHA256: AES128GCM,
             CipherSuite.TLS_AES_256_GCM_SHA384: None,
             CipherSuite.TLS_CHACHA20_POLY1305_SHA256: Chacha20Poly1305,
             CipherSuite.TLS_AES_128_CCM_SHA256: None,

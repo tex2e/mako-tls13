@@ -1,5 +1,5 @@
 
-from type import Uint8, Enum
+from metatype import Uint8, Enum
 
 # 構造体に代入する定数群。
 # 循環参照(循環import)を回避するためにファイルを分離した。

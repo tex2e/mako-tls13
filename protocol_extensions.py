@@ -1,11 +1,12 @@
 
-from type import Uint16, List, EnumUnknown, OpaqueLength
-import structmeta as meta
+from metatype import Uint16, List, EnumUnknown, OpaqueLength
+import metastruct as meta
 
 from protocol_ext_version import SupportedVersions
 from protocol_ext_supportedgroups import NamedGroupList
 from protocol_ext_keyshare import KeyShareHello
 from protocol_ext_signature import SignatureSchemeList
+from protocol_ext_quic_transportparam import QuicTransportParams  # [QUIC]
 
 class ExtensionType(EnumUnknown):
     elem_t = Uint16
@@ -34,9 +35,12 @@ class ExtensionType(EnumUnknown):
     post_handshake_auth = Uint16(49)
     signature_algorithms_cert = Uint16(50)
     key_share = Uint16(51)
+    renegotiation_info = Uint16(0xff01) # 再ネゴシエーションに対応済みを表す (RFC 5746)
+
+    quic_transport_parameters = Uint16(0x39)  # QUIC Transport Parameters Extension
 
 @meta.struct
-class Extension(meta.StructMeta):
+class Extension(meta.MetaStruct):
     extension_type: ExtensionType
     length: Uint16 = lambda self: Uint16(len(bytes(self.extension_data)))
     extension_data: meta.Select('extension_type', cases={
@@ -44,6 +48,7 @@ class Extension(meta.StructMeta):
         ExtensionType.supported_groups: NamedGroupList,
         ExtensionType.key_share: KeyShareHello,
         ExtensionType.signature_algorithms: SignatureSchemeList,
+        ExtensionType.quic_transport_parameters: QuicTransportParams,  # [QUIC]
         meta.Otherwise: OpaqueLength,
     })
 
@@ -53,7 +58,7 @@ Extensions = List(size_t=Uint16, elem_t=Extension)
 # Server Parameters
 
 @meta.struct
-class EncryptedExtensions(meta.StructMeta):
+class EncryptedExtensions(meta.MetaStruct):
     extensions: Extensions
 
 

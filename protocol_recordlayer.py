@@ -1,7 +1,7 @@
 
 import io
-from type import Uint8, Uint16, Opaque, OpaqueLength, OpaqueLength
-import structmeta as meta
+from metatype import Uint8, Uint16, Opaque, OpaqueLength, OpaqueLength
+import metastruct as meta
 
 from protocol_types import ContentType
 from protocol_handshake import Handshake, HandshakeType
@@ -13,14 +13,14 @@ from protocol_alert import Alert
 ProtocolVersion = Uint16
 
 @meta.struct
-class TLSPlaintext(meta.StructMeta):
+class TLSPlaintext(meta.MetaStruct):
     type: ContentType
     legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
     length: Uint16 = lambda self: Uint16(len(bytes(self.fragment)))
     fragment: OpaqueLength
 
     @classmethod
-    def create(self, content_type: ContentType, *messages) -> meta.StructMeta:
+    def create(self, content_type: ContentType, *messages) -> meta.MetaStruct:
         assert isinstance(content_type, ContentType)
         messages_byte = b''.join(bytes(msg) for msg in messages)
         return TLSPlaintext(
@@ -28,7 +28,7 @@ class TLSPlaintext(meta.StructMeta):
             fragment=OpaqueLength(messages_byte)
         )
 
-    def encrypt(self, cipher_instance) -> meta.StructMeta:
+    def encrypt(self, cipher_instance) -> meta.MetaStruct:
         msg_pad = TLSInnerPlaintext.append_pad(self)
         tag_size = cipher_instance.__class__.tag_size
         aad = bytes.fromhex('170303') + bytes(Uint16(len(bytes(msg_pad)) + tag_size))
@@ -51,11 +51,11 @@ class TLSPlaintext(meta.StructMeta):
         stream_len = len(self.fragment.get_raw_bytes())
         stream = io.BytesIO(self.fragment.get_raw_bytes())
         while stream.tell() < stream_len:
-            messages.append(elem_t.from_fs(stream))
+            messages.append(elem_t.from_stream(stream))
         return messages
 
 @meta.struct
-class TLSCiphertext(meta.StructMeta):
+class TLSCiphertext(meta.MetaStruct):
     opaque_type: ContentType = ContentType.application_data
     legacy_record_version: ProtocolVersion = ProtocolVersion(0x0303)
     length: Uint16 = lambda self: Uint16(len(bytes(self.encrypted_record)))
@@ -111,7 +111,7 @@ class TLSInnerPlaintext:
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    from type import Uint24
+    from metatype import Uint24
     from protocol_hello import \
         ClientHello, ServerHello, \
         Random, Opaque1, OpaqueUint8, CipherSuites, CipherSuite, Extensions

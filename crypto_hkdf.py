@@ -9,7 +9,7 @@
 
 import hmac
 import hashlib
-from type import Uint8, Uint16, Opaque
+from metatype import Uint8, Uint16, Opaque
 OpaqueUint8 = Opaque(Uint8)
 
 def divceil(n: int, d: int) -> int:
