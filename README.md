@@ -9,9 +9,8 @@
 
 ## Prerequisites
 
-```
-pip install cryptography
-pip install pycryptodome
+```bash
+pip install -r requirements.txt
 ```
 
 ## Execution
@@ -27,7 +26,7 @@ python main_client.py
 ```
 
 単体テスト
-```
+```bash
 python -m unittest discover tests "test_*.py"
 ```
 
