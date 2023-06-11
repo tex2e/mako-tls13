@@ -1,3 +1,8 @@
+# ------------------------------------------------------------------------------
+# Cipher Suites
+#   - RFC 8446 #appendix-B.4
+#     * https://datatracker.ietf.org/doc/html/rfc8446#appendix-B.4
+# ------------------------------------------------------------------------------
 
 from metatype import Uint16, List, Enum
 from crypto_chacha20poly1305 import Chacha20Poly1305

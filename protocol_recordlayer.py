@@ -1,17 +1,28 @@
+# ------------------------------------------------------------------------------
+# Record Layer
+#   - RFC 8446 #section-5.1 (Record Layer)
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-5.1
+#   - RFC 8446 #section-5.2 (Record Payload Protection)
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-5.2
+# ------------------------------------------------------------------------------
 
 import io
 from metatype import Uint8, Uint16, Opaque, OpaqueLength, OpaqueLength
 import metastruct as meta
-
 from protocol_types import ContentType
 from protocol_handshake import Handshake, HandshakeType
 from protocol_alert import Alert
 
-# ------------------------------------------------------------------------------
-# Record Layer
-
 ProtocolVersion = Uint16
 
+### TLSPlaintext ###
+# struct {
+#     ContentType type;
+#     ProtocolVersion legacy_record_version;
+#     uint16 length;
+#     opaque fragment[TLSPlaintext.length];
+# } TLSPlaintext;
+#
 @meta.struct
 class TLSPlaintext(meta.MetaStruct):
     type: ContentType
@@ -54,6 +65,15 @@ class TLSPlaintext(meta.MetaStruct):
             messages.append(elem_t.from_stream(stream))
         return messages
 
+
+### TLSCiphertext ###
+# struct {
+#     ContentType opaque_type = application_data; /* 23 */
+#     ProtocolVersion legacy_record_version = 0x0303; /* TLS v1.2 */
+#     uint16 length;
+#     opaque encrypted_record[TLSCiphertext.length];
+# } TLSCiphertext;
+#
 @meta.struct
 class TLSCiphertext(meta.MetaStruct):
     opaque_type: ContentType = ContentType.application_data
@@ -91,6 +111,14 @@ class TLSCiphertext(meta.MetaStruct):
                 fragment=OpaqueLength(bytes(plaindata))
             )
 
+
+### TLSInnerPlaintext ###
+# struct {
+#     opaque content[TLSPlaintext.length];
+#     ContentType type;
+#     uint8 zeros[length_of_padding];
+# } TLSInnerPlaintext;
+#
 class TLSInnerPlaintext:
     @staticmethod
     def append_pad(tlsplaintext) -> bytes:

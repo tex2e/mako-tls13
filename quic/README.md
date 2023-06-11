@@ -1,20 +1,19 @@
 
 # mako-http3
 
-実装中
+* ClientHello & ServerHello まで実装完了
+* クライアント側のみ
 
----
+```
+python quic/main_client.py
+```
+
 
 ### Debug
 
 Sample:
 ```
 git clone https://github.com/cloudflare/quiche
-cp quiche /opt/quiche
-```
-
-```
-cd /opt/quiche
 ```
 
 サーバ側：

@@ -1,3 +1,8 @@
+# ------------------------------------------------------------------------------
+# TLS Application-Layer Protocol Negotiation Extension
+#   - RFC 7301
+#     * https://datatracker.ietf.org/doc/html/rfc7301
+# ------------------------------------------------------------------------------
 
 from metatype import Uint16, OpaqueUint8, List
 

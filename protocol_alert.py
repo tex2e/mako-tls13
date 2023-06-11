@@ -1,13 +1,28 @@
+# ------------------------------------------------------------------------------
+# TLS Alert Protocol
+#   - RFC 8446 #section-6
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-6
+# ------------------------------------------------------------------------------
 
 from metatype import Uint8, Enum
 import metastruct as meta
 
+### AlertLevel ###
+# enum { warning(1), fatal(2), (255) } AlertLevel;
+#
 class AlertLevel(Enum):
-    elem_t = Uint8
+    elem_t = Uint8  # (255)
 
     warning = Uint8(1)
     fatal = Uint8(2)
 
+### AlertDescription ###
+# enum {
+#     close_notify(0),
+#     unexpected_message(10),
+#     bad_record_mac(20),
+#     ...
+#
 class AlertDescription(Enum):
     elem_t = Uint8
 
@@ -39,6 +54,12 @@ class AlertDescription(Enum):
     certificate_required = Uint8(116)
     no_application_protocol = Uint8(120)
 
+### Alert ###
+# struct {
+#     AlertLevel level;
+#     AlertDescription description;
+# } Alert;
+#
 @meta.struct
 class Alert(meta.MetaStruct):
     level: AlertLevel

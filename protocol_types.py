@@ -1,14 +1,28 @@
+# ------------------------------------------------------------------------------
+# 構造体に代入する定数群。
+# 循環参照(循環import)を回避するためにファイルを分離した。
+# ------------------------------------------------------------------------------
 
 from metatype import Uint8, Enum
 
-# 構造体に代入する定数群。
-# 循環参照(循環import)を回避するためにファイルを分離した。
-
 # ------------------------------------------------------------------------------
 # Record Layer
+#   - RFC 8446 #section-5.1
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-5.1
+# ------------------------------------------------------------------------------
 
+### ContentType ###
+# enum {
+#     invalid(0),
+#     change_cipher_spec(20),
+#     alert(21),
+#     handshake(22),
+#     application_data(23),
+#     (255)
+# } ContentType;
+#
 class ContentType(Enum):
-    elem_t = Uint8
+    elem_t = Uint8  # (255)
 
     invalid = Uint8(0)
     change_cipher_spec = Uint8(20)
@@ -17,10 +31,21 @@ class ContentType(Enum):
     application_data = Uint8(23)
 
 # ------------------------------------------------------------------------------
-# Handshake Layer
+# Handshake Protocol
+#   - RFC 8446 #section-4
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-4
+# ------------------------------------------------------------------------------
 
+### HandshakeType ###
+# enum {
+#     client_hello(1),
+#     server_hello(2),
+#     ...
+#     (255)
+# } HandshakeType;
+#
 class HandshakeType(Enum):
-    elem_t = Uint8
+    elem_t = Uint8  # (255)
 
     #hello_request_RESERVED = Uint8(0)
     client_hello = Uint8(1)

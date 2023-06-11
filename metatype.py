@@ -6,6 +6,24 @@ import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
 from enum import Enum as BuildinEnum
 
+# TLS用の型一覧
+# + Type
+#   + Uint
+#     + Uint8
+#     + Uint16
+#     + Uint24
+#     + Uint32
+#     + Uint64
+#   + VarLenIntEncoding  (QUIC用)
+#   + Opaque
+#     + OpaqueFix
+#     + OpaqueVar
+#   + List
+#   + Enum
+#     + EnumUnknown
+#   + Empty
+#   + MetaStruct  (metastruct.py参照)
+
 # 全ての型が継承するクラス
 class Type:
     size = None # 固定長のときに使用する
@@ -224,7 +242,7 @@ def OpaqueFix(size):
             return bytes(self.byte)
 
         @classmethod
-        def from_stream(cls, fs, parent=None):
+        def from_stream(cls, fs: io.BytesIO, parent: Type=None):
             size = cls.size
             if callable(size): # ラムダのときは実行時に評価した値がサイズになる
                 try:
@@ -259,7 +277,7 @@ def OpaqueVar(size_t):
     class OpaqueVar(OpaqueMeta):
         size_t = Uint
 
-        def __init__(self, byte):
+        def __init__(self, byte: bytes):
             assert isinstance(byte, (bytes, bytearray))
             self.byte = bytes(byte)
             self.size_t = OpaqueVar.size_t
@@ -277,7 +295,7 @@ def OpaqueVar(size_t):
                 raise NotImplementedError
 
         @classmethod
-        def from_stream(cls, fs, parent=None):
+        def from_stream(cls, fs: io.BytesIO, parent=None):
             size_t = OpaqueVar.size_t
             length = int(size_t.from_stream(fs))
             byte   = fs.read(length)
@@ -304,7 +322,7 @@ class ListMeta(Type):
     pass
 
 # 配列の構造を表すためのクラス
-def List(size_t, elem_t):
+def List(size_t: Uint, elem_t: Type):
 
     # List ではスコープが異なる(グローバルとローカル)と、
     # 組み込み関数 issubclass が期待通りに動かない場合があるので、
@@ -330,7 +348,7 @@ def List(size_t, elem_t):
 
         # 構造体の構築時には、Listは親インスタンスを参照できるようにする。
         # そして要素がMetaStructであれば、各要素の.set_parent()に親インスタンスを渡す。
-        def set_parent(self, instance):
+        def set_parent(self, instance: Type):
             self.parent = instance
 
             from metastruct import MetaStruct
@@ -349,7 +367,7 @@ def List(size_t, elem_t):
                 return bytes(size_t(content_len)) + content
 
         @classmethod
-        def from_stream(cls, fs, parent=None):
+        def from_stream(cls, fs: io.BytesIO, parent=None):
             from metastruct import MetaStruct
             size_t = cls.size_t
             elem_t = cls.elem_t
@@ -399,8 +417,10 @@ def List(size_t, elem_t):
 
         def find(self, arg):
             if callable(arg):
+                # 引数が関数の場合、条件を満たす値を返す
                 return next((x for x in iter(self) if arg(x)), None)
             else:
+                # 引数がスカラ値の場合、引数と一致する値を返す
                 return next((x for x in iter(self) if x == arg), None)
 
     List.size_t = size_t
@@ -420,7 +440,7 @@ class Enum(Type, BuildinEnum):
         return bytes(self.value)
 
     @classmethod
-    def from_stream(cls, fs, parent=None):
+    def from_stream(cls, fs: io.BytesIO, parent=None):
         elem_t = cls.get_type()
         return cls(elem_t.from_stream(fs))
 
@@ -451,7 +471,7 @@ class Empty(Type):
         pass
 
     @classmethod
-    def from_stream(cls, fs, parent=None):
+    def from_stream(cls, fs: io.BytesIO, parent=None):
         return cls()
 
     def __bytes__(self):
@@ -465,6 +485,7 @@ class Empty(Type):
 # データ構造復元時のデバッグ方法：
 # print(fs.read(10)); fs.seek(-10, 1)
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     import unittest

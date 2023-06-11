@@ -1,3 +1,10 @@
+# ------------------------------------------------------------------------------
+# TLS Extensions
+#   - RFC 8446 #section-4.2 (Extensions)
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-4.2
+#   - RFC 8446 #section-4.3.1 (Encrypted Extensions)
+#     * https://datatracker.ietf.org/doc/html/rfc8446#section-4.3.1
+# ------------------------------------------------------------------------------
 
 from metatype import Uint16, List, EnumUnknown, OpaqueLength
 import metastruct as meta
@@ -8,8 +15,17 @@ from protocol_ext_keyshare import KeyShareHello
 from protocol_ext_signature import SignatureSchemeList
 from protocol_ext_quic_transportparam import QuicTransportParams  # [QUIC]
 
+### ExtensionType ###
+# enum {
+#     server_name(0),
+#     max_fragment_length(1),
+#     status_request(5),
+#     ...
+#     (65535)
+# } ExtensionType;
+#
 class ExtensionType(EnumUnknown):
-    elem_t = Uint16
+    elem_t = Uint16  # (65535)
 
     server_name = Uint16(0)
     max_fragment_length = Uint16(1)
@@ -39,6 +55,12 @@ class ExtensionType(EnumUnknown):
 
     quic_transport_parameters = Uint16(0x39)  # QUIC Transport Parameters Extension
 
+### Extension ###
+# struct {
+#     ExtensionType extension_type;
+#     opaque extension_data<0..2^16-1>;
+# } Extension;
+#
 @meta.struct
 class Extension(meta.MetaStruct):
     extension_type: ExtensionType
@@ -54,9 +76,15 @@ class Extension(meta.MetaStruct):
 
 Extensions = List(size_t=Uint16, elem_t=Extension)
 
+
 # ------------------------------------------------------------------------------
 # Server Parameters
 
+### EncryptedExtensions ###
+# struct {
+#     Extension extensions<0..2^16-1>;
+# } EncryptedExtensions;
+#
 @meta.struct
 class EncryptedExtensions(meta.MetaStruct):
     extensions: Extensions

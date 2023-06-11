@@ -1,7 +1,7 @@
 
+import re
 import io # バイトストリーム操作
 import textwrap # テキストの折り返しと詰め込み
-import re # 正規表現
 import shutil # ターミナル幅の取得
 from metatype import Type, List, ListMeta
 from utils import dig
@@ -23,6 +23,7 @@ import dataclasses
 #       extensions: List(size_t=Uint16, elem_t=Extension)
 #
 
+# --- Struct -------------------------------------------------------------------
 # 構造体のデコレータ
 def struct(cls):
     for name, elem_t in cls.__annotations__.items():
@@ -36,6 +37,7 @@ def is_MetaStruct(elem):
 def is_List_of_MetaStruct(elem):
     return (isinstance(elem, ListMeta) and
             issubclass(elem.__class__.elem_t, MetaStruct))
+
 
 # 構造体の抽象クラス
 class MetaStruct(Type):
@@ -67,7 +69,7 @@ class MetaStruct(Type):
         return cls(**dictionary)
 
     # 全てのMetaStructは親インスタンスを参照できるようにする。
-    def set_parent(self, parent):
+    def set_parent(self, parent: Type):
         self.parent = parent
 
     def __bytes__(self):
@@ -80,7 +82,7 @@ class MetaStruct(Type):
         return f.getvalue()
 
     @classmethod
-    def from_stream(cls, fs, parent=None):
+    def from_stream(cls, fs: io.BytesIO, parent=None):
         # デフォルト値などを導出せずにインスタンス化する
         instance = cls.create_empty()
         instance.set_parent(parent) # 子が親インスタンスを参照できるようにする
@@ -152,6 +154,8 @@ class MetaStruct(Type):
     def __len__(self):
         return len(bytes(self))
 
+
+# --- Select -------------------------------------------------------------------
 # 状況に応じて型を選択するためのクラス。
 # 例えば、Handshake.msg_type が client_hello と server_hello で、
 # 自身や子要素の構造体フィールドの型が変化する場合に使用する。
@@ -211,6 +215,7 @@ class Otherwise:
     pass
 
 
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     from metatype import Uint8, Uint16, Opaque, List

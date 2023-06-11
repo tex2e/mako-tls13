@@ -1,5 +1,5 @@
 
-# TLS 1.3 通信プログラム
+# TLS 1.3 + Quic 通信プログラム
 
 - crypto_* ... DH鍵共有やChaCha20-Poly1305暗号化など
 - main_* ... ClientやServer側の処理
