@@ -7,6 +7,7 @@
 #     * https://datatracker.ietf.org/doc/html/rfc8446#section-7.1
 # ------------------------------------------------------------------------------
 
+from typing import Tuple
 import hmac
 import hashlib
 from metatype import Uint8, Uint16, Opaque
@@ -122,7 +123,7 @@ def transcript_hash(messages: bytes, hash_name='sha256') -> bytearray:
     assert isinstance(messages, (bytes, bytearray))
     return secure_hash(messages, hash_name)
 
-def gen_key_and_iv(secret: bytes, key_size: bytes, nonce_size: int, hash_name='sha256') -> list[bytes]:
+def gen_key_and_iv(secret: bytes, key_size: bytes, nonce_size: int, hash_name='sha256') -> Tuple[bytes, bytes]:
     write_key = HKDF_expand_label(secret, b'key', b'', key_size,   hash_name)
     write_iv  = HKDF_expand_label(secret, b'iv',  b'', nonce_size, hash_name)
     return write_key, write_iv
