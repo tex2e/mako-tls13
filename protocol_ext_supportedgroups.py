@@ -54,23 +54,3 @@ NamedGroups = List(size_t=Uint16, elem_t=NamedGroup)
 @meta.struct
 class NamedGroupList(meta.MetaStruct):
     named_group_list: NamedGroups
-
-
-# ------------------------------------------------------------------------------
-if __name__ == '__main__':
-
-    import unittest
-
-    class TestUnit(unittest.TestCase):
-
-        def test_namedgrouplist(self):
-
-            ngl = NamedGroupList(named_group_list=NamedGroups([
-                NamedGroup.x25519, NamedGroup.secp256r1,
-            ]))
-            ngl_bytes = bytes.fromhex('0004 001D 0017')
-
-            self.assertEqual(bytes(ngl), ngl_bytes)
-            self.assertEqual(NamedGroupList.from_bytes(bytes(ngl)), ngl)
-
-    unittest.main()

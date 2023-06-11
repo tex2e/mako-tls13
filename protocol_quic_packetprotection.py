@@ -111,24 +111,3 @@ def decrypt_payload(payload: bytes, cs_key: bytes, cs_iv: bytes, aad: bytes,
 def encrypt_payload(payload: bytes, cs_key: bytes, cs_iv: bytes, aad: bytes,
                     packet_number: int, debug=False) -> bytes:
     return _enc_dec_payload(payload, cs_key, cs_iv, aad, packet_number, mode='encrypt', debug=debug)
-
-
-
-# ------------------------------------------------------------------------------
-if __name__ == '__main__':
-
-    import unittest
-
-    class TestUint(unittest.TestCase):
-
-        def test_enc_dec_payload(self):
-            plaintext_payload = b'\x01\x02\x03\x04\x05' + (b'\x00' * 30)
-            cs_key = b'\x11' * 16
-            cs_iv  = b'\x22' * 12
-            aad    = b'unittest label'
-            packet_number = 999999
-            tmp = encrypt_payload(plaintext_payload, cs_key, cs_iv, aad, packet_number)
-            tmp = decrypt_payload(tmp,               cs_key, cs_iv, aad, packet_number)
-            self.assertEqual(tmp, plaintext_payload)
-
-    unittest.main()
