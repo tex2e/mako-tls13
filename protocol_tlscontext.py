@@ -29,8 +29,8 @@ class TLSContext:
     def set_key_exchange(self, dhkex_classes: dict, secret_keys: dict):
         self.client_hello = self.tls_messages.get(HandshakeType.client_hello)
         self.server_hello = self.tls_messages.get(HandshakeType.server_hello)
-        self.dhkex_classes = dhkex_classes # TODO: something like list or ...
-        self.secret_keys = secret_keys   # TODO:
+        self.dhkex_classes = dhkex_classes
+        self.secret_keys = secret_keys
 
         self._derive_negotiated_params()
 

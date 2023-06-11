@@ -4,7 +4,7 @@
 #     * https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.3
 # ------------------------------------------------------------------------------
 
-from metatype import Uint16, List, Enum
+from metatype import Uint16, List, EnumUnknown
 import metastruct as meta
 
 ### SignatureScheme ###
@@ -16,7 +16,7 @@ import metastruct as meta
 #     (0xFFFF)
 # } SignatureScheme;
 #
-class SignatureScheme(Enum):
+class SignatureScheme(EnumUnknown):
     elem_t = Uint16  # (0xFFFF)
 
     # RSASSA-PKCS1-v1_5 algorithms
