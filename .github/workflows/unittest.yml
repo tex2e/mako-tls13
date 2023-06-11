@@ -1,0 +1,25 @@
+name: Unittest
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+      # レポジトリのチェックアウト
+      - uses: actions/checkout@v3
+
+      # Python環境のセットアップ
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # ユニットテストの実行
+      - name: Run unittests
+        run: |
+          python -m unittest discover tests "test_*.py"
